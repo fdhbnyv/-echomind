@@ -1,0 +1,198 @@
+# ============================================================================
+# 模板：每日复盘 (Daily Review)
+# 文件: templates/daily-review.yaml
+# 版本: v1.0
+# 说明: 用户睡前/一天结束后口述复盘，AI 按结构化字段提取
+# ============================================================================
+
+meta:
+  id: echo_daily_review
+  name: 每日复盘
+  name_en: Daily Review
+  description: >
+    睡前对着手机说几句今天做了什么、有什么想法、明天计划什么。
+    AI 自动提取成结构化的日复盘笔记。
+  icon: 🌙
+  category: journal
+  version: 1.0.0
+  author: EchoMind 官方
+  tags: [复盘, 日记, 日程, 行动项]
+
+# ---------------------------------------------------------------------------
+# LLM 结构化 prompt
+# 发送给 LLM 的完整 system prompt，{transcript} 会被替换为转写文本
+# ---------------------------------------------------------------------------
+llm_prompt: |
+  # 角色
+  你是一个专业的个人效能助手，擅长从碎片化语音记录中提取结构化信息。
+
+  # 任务
+  将用户的口述语音转写文本，按「每日复盘」模板整理为结构化笔记。
+  用户的语音可能是杂乱无章的，你需要理解上下文，提取关键信息。
+
+  # 输出要求
+  严格按照以下 JSON Schema 输出，不要添加 markdown 代码块标记，只输出纯 JSON。
+
+  # 字段提取规则
+  - summary: 用一句话总结今天整体的感受或主题（不要超过 30 字）
+  - accomplishments: 列举今天完成的具体事项，每项 5-15 字，如果用户没提到则返回空数组
+  - unfinished: 今天想做但没做完的事项，如果用户没提到则返回空数组
+  - mood: 用户表达的情绪，从 ["productive", "neutral", "tired", "stressed", "happy", "anxious", "calm", "frustrated"] 中选择最匹配的一个，如果无法判断则返回 "neutral"
+  - reflections: 关键反思或感悟，1-3 条，每条不超过 30 字；如果用户没提到则返回空数组
+  - tomorrow_plan: 用户提到的明天计划事项，如果没提到则返回空数组
+  - action_items: 从语音中识别的承诺性语句（"我要…"、"需要做…"、"记得…"、"TODO…"）转化为行动项，包含事项描述和可选的 deadline（ISO 8601 日期，如果用户提到具体时间）；如果没提到则返回空数组
+  - tags: 自动推断的标签，1-3 个，从 ["工作", "学习", "生活", "健康", "创作", "社交", "家庭", "理财", "旅行", "阅读"] 中选择
+
+  # Note
+  如果用户提到了当天日期，记录到 date 字段。如果没提到，日期为今天。
+  时间表达式处理示例：
+  - "明天下午3点" → deadline: "2026-07-04T15:00:00"
+  - "下周三" → 计算具体日期
+  - "后天上午" → 计算具体日期
+
+  # 输入的语音转写文本：
+  {transcript}
+
+# ---------------------------------------------------------------------------
+# 输出 JSON Schema
+# ---------------------------------------------------------------------------
+output_schema:
+  type: object
+  properties:
+    date:
+      type: string
+      description: 复盘日期，ISO 8601 格式 (YYYY-MM-DD)
+    summary:
+      type: string
+      description: 一日总结
+      maxLength: 30
+    accomplishments:
+      type: array
+      items:
+        type: string
+      description: 今日完成事项
+    unfinished:
+      type: array
+      items:
+        type: string
+      description: 未完成任务
+    mood:
+      type: string
+      enum: [productive, neutral, tired, stressed, happy, anxious, calm, frustrated]
+      description: 情绪标签
+    reflections:
+      type: array
+      items:
+        type: string
+      description: 关键反思
+    tomorrow_plan:
+      type: array
+      items:
+        type: string
+      description: 明日计划
+    action_items:
+      type: array
+      items:
+        type: object
+        properties:
+          task:
+            type: string
+            description: 行动事项
+          deadline:
+            type: string
+            nullable: true
+            description: 截止日期 (ISO 8601)，如果用户提到了时间
+      description: 行动项
+    tags:
+      type: array
+      items:
+        type: string
+      description: 标签
+  required:
+    [date, summary, accomplishments, unfinished, mood, reflections, tomorrow_plan, action_items, tags]
+
+# ---------------------------------------------------------------------------
+# 输出 Markdown 模板（用户界面上展示的格式）
+# ---------------------------------------------------------------------------
+markdown_template: |
+  # {date} 复盘
+
+  > {summary}
+
+  ## ✅ 今日完成
+  {accomplishments}
+
+  ## ❌ 未完成
+  {unfinished}
+
+  ## 📝 反思
+  {reflections}
+
+  ## 📅 明日计划
+  {tomorrow_plan}
+
+  ## 🎯 行动项
+  {action_items}
+
+  **情绪**: {mood}  **标签**: {tags}
+
+# ---------------------------------------------------------------------------
+# Notion 字段映射规则
+# ---------------------------------------------------------------------------
+notion_mapping:
+  database_type: journal
+  field_map:
+    date: { property: "日期", type: "date" }
+    summary: { property: "总结", type: "title" }
+    accomplishments: { property: "完成事项", type: "multi_select" }
+    mood: { property: "心情", type: "select" }
+    reflections: { property: "反思", type: "rich_text" }
+    tomorrow_plan: { property: "明日计划", type: "rich_text" }
+    tags: { property: "标签", type: "multi_select" }
+
+# ---------------------------------------------------------------------------
+# 示例输入输出
+# ---------------------------------------------------------------------------
+example:
+  transcript: >
+    今天终于把那个用户访谈报告写完了，拖了一周了都。
+    下午开了个团队会，讨论了下一期的排期，感觉大家意见不太统一，有点烦。
+    晚上跑了5公里，舒服多了。
+    哦对了，明天上午得记得把报告发给老王，他催了好几次了。
+    后天下午三点约了设计师对一下新方案的稿子。
+  output:
+    date: "2026-07-03"
+    summary: "完成了拖延一周的访谈报告"
+    accomplishments:
+      - "完成用户访谈报告"
+      - "参加团队排期讨论会"
+      - "晚上跑步 5 公里"
+    unfinished: []
+    mood: "tired"
+    reflections:
+      - "团队意见不一致时需要有更结构化的决策流程"
+      - "运动确实能缓解工作中的烦躁"
+    tomorrow_plan:
+      - "把报告发给老王"
+    action_items:
+      - task: "把报告发给老王"
+        deadline: "2026-07-04T12:00:00"
+      - task: "与设计师对方案稿"
+        deadline: "2026-07-05T15:00:00"
+    tags: ["工作", "生活", "健康"]
+
+# ---------------------------------------------------------------------------
+# 结构化质量测试用例（用于 CI 验证）
+# ---------------------------------------------------------------------------
+test_cases:
+  - transcript: "今天啥也没干，看了一天手机，废了"
+    expected:
+      accomplishments: []
+      mood: "frustrated"
+      tags: ["生活"]
+  - transcript: "明天下午两点跟客户开会，记得准备好PPT。还要把合同寄出去。"
+    expected:
+      action_items:
+        - task: "准备会议PPT"
+          deadline: "2026-07-04T14:00:00"
+        - task: "寄出合同"

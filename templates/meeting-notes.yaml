@@ -1,0 +1,191 @@
+# ============================================================================
+# 模板：会议纪要 (Meeting Notes)
+# 文件: templates/meeting-notes.yaml
+# 版本: v1.0
+# 说明: 用户会后口述会议要点和行动项，AI 提取成结构化会议纪要
+# ============================================================================
+
+meta:
+  id: echo_meeting_notes
+  name: 会议纪要
+  name_en: Meeting Notes
+  description: >
+    会议结束后快速口述要点和决策，AI 自动整理成包含
+    行动项和负责人的结构化会议纪要。
+  icon: 📋
+  category: work
+  version: 1.0.0
+  author: EchoMind 官方
+  tags: [会议, 工作, 行动项]
+
+# ---------------------------------------------------------------------------
+# LLM 结构化 prompt
+# ---------------------------------------------------------------------------
+llm_prompt: |
+  # 角色
+  你是一个专业的会议纪要助手，擅长从口述录音中提取会议关键信息。
+
+  # 任务
+  将用户的口述语音转写文本，按「会议纪要」模板整理为结构化笔记。
+  用户可能口述的顺序是混乱的，你需要按逻辑重组。
+
+  # 输出要求
+  严格按照以下 JSON Schema 输出纯 JSON，不要添加任何标记。
+
+  # 字段提取规则
+  - meeting_title: 为这次会议取一个简洁的名称（如"产品周会"、"需求评审会"），不超过 20 字。如果用户没提会议名称，根据内容推断
+  - date: 会议日期，默认为当天
+  - participants: 参与人列表，从语音中提取人名，如果用户没提到具体人名则返回 ["未提及"]
+  - key_decisions: 关键决策，逐条列出，每条不超过 40 字；如果没提到则返回空数组
+  - discussion_points: 讨论要点，2-5 个核心议题，每个包含议题标题和简述；如果没提到则返回空数组
+  - action_items: 行动项，从语音中识别责任人+任务+DDL 的结构。每项包含：
+    - task: 任务描述（不超过 30 字）
+    - assignee: 责任人，如果用户没明确说谁负责则返回 "待定"
+    - deadline: 截止日期 ISO 8601，如果提到了时间
+  - next_meeting: 下次会议时间，如果有提到则提取，否则返回 null
+  - tags: 标签，1-3 个，自动推断
+
+  # 时间表达式处理
+  - "下周五之前" → 计算具体日期
+  - "这周四" → 本周四的日期
+  - "明天下班前" → 次日 18:00
+
+  # 输入的语音转写文本：
+  {transcript}
+
+# ---------------------------------------------------------------------------
+# 输出 Schema
+# ---------------------------------------------------------------------------
+output_schema:
+  type: object
+  properties:
+    meeting_title:
+      type: string
+      maxLength: 20
+      description: 会议标题
+    date:
+      type: string
+      description: 会议日期 (YYYY-MM-DD)
+    participants:
+      type: array
+      items:
+        type: string
+      description: 参与人
+    key_decisions:
+      type: array
+      items:
+        type: string
+      description: 关键决策
+    discussion_points:
+      type: array
+      items:
+        type: object
+        properties:
+          topic:
+            type: string
+            description: 议题
+          summary:
+            type: string
+            description: 简述
+      description: 讨论要点
+    action_items:
+      type: array
+      items:
+        type: object
+        properties:
+          task:
+            type: string
+            description: 任务
+          assignee:
+            type: string
+            description: 责任人
+          deadline:
+            type: string
+            nullable: true
+            description: 截止日期
+      description: 行动项
+    next_meeting:
+      type: string
+      nullable: true
+      description: 下次会议时间
+    tags:
+      type: array
+      items:
+        type: string
+      description: 标签
+  required: [meeting_title, date, participants, key_decisions, discussion_points, action_items, next_meeting, tags]
+
+# ---------------------------------------------------------------------------
+# Markdown 输出模板
+# ---------------------------------------------------------------------------
+markdown_template: |
+  # 📋 {meeting_title}
+
+  **日期**: {date}  **参与人**: {participants}
+
+  ---
+
+  ## 关键决策
+  {key_decisions}
+
+  ## 讨论要点
+  {discussion_points}
+
+  ## 行动项
+  | 任务 | 负责人 | 截止日期 |
+  |------|--------|---------|
+  {action_items_table}
+
+  {next_meeting}
+
+  `{tags}`
+
+# ---------------------------------------------------------------------------
+# Notion 字段映射
+# ---------------------------------------------------------------------------
+notion_mapping:
+  database_type: meeting
+  field_map:
+    meeting_title: { property: "会议名称", type: "title" }
+    date: { property: "会议日期", type: "date" }
+    participants: { property: "参与人", type: "multi_select" }
+    key_decisions: { property: "决策", type: "rich_text" }
+    discussion_points: { property: "讨论内容", type: "rich_text" }
+    action_items: { property: "行动项", type: "rich_text" }
+    tags: { property: "标签", type: "multi_select" }
+
+# ---------------------------------------------------------------------------
+# 示例
+# ---------------------------------------------------------------------------
+example:
+  transcript: >
+    今天下午开了个产品周会，我、老王、小李还有设计师小陈参加的。
+    主要讨论了三件事：第一，上周的用户反馈里大家普遍反映录音转写太慢了，
+    需要优化一下后端响应时间；第二，决定把新方案的首页改版推到下个版本；
+    第三，下周要开始准备 V2 模板市场的 MVP。
+    行动项的话，老王负责优化后端响应，下周五之前出方案，
+    我负责整理用户反馈文档，周四前发给团队。
+    下次会议定在下周二下午两点。
+  output:
+    meeting_title: "产品周会"
+    date: "2026-07-03"
+    participants: ["我", "老王", "小李", "小陈"]
+    key_decisions:
+      - "首页改版推迟到下一版本"
+      - "下周启动 V2 模板市场 MVP 准备工作"
+    discussion_points:
+      - topic: "录音转写速度优化"
+        summary: "用户反馈转写延迟过高，需要缩短后端响应时间"
+      - topic: "首页改版排期"
+        summary: "决定推迟到下一版本，当前版本聚焦核心体验优化"
+      - topic: "V2 模板市场规划"
+        summary: "下周开始准备 MVP 方案"
+    action_items:
+      - task: "优化后端转写响应时间"
+        assignee: "老王"
+        deadline: "2026-07-10T23:59:59"
+      - task: "整理用户反馈文档"
+        assignee: "我"
+        deadline: "2026-07-09T23:59:59"
+    next_meeting: "2026-07-07T14:00:00"
+    tags: ["工作", "产品", "会议"]

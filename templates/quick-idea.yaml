@@ -1,0 +1,133 @@
+# ============================================================================
+# 模板：碎片想法 (Quick Idea)
+# 文件: templates/quick-idea.yaml
+# 版本: v1.0
+# 说明: 用户随时冒出的灵感、想法、念头，一键记录并归类
+# ============================================================================
+
+meta:
+  id: echo_quick_idea
+  name: 碎片想法
+  name_en: Quick Idea
+  description: >
+    走路、通勤、洗澡时想到什么好点子，直接说出来。
+    AI 自动归档到"想法箱"，附时间戳和标签。
+  icon: 💡
+  category: capture
+  version: 1.0.0
+  author: EchoMind 官方
+  tags: [灵感, 想法, 记录]
+
+# ---------------------------------------------------------------------------
+# LLM 结构化 prompt
+# ---------------------------------------------------------------------------
+llm_prompt: |
+  # 角色
+  你是一个创意思维助手，擅长从零散的语音记录中提炼有价值的思想碎片。
+
+  # 任务
+  将用户的口述语音转写文本，按「碎片想法」模板整理。
+  用户的语音可能是跳跃的、不完整的，你需要理解意图，提炼核心。
+
+  # 输出要求
+  严格按照以下 JSON Schema 输出纯 JSON，不要添加任何标记。
+
+  # 字段提取规则
+  - title: 为这个想法取一个简洁的标题（不超过 15 字）
+  - content: 核心内容，用 2-5 句话清晰表达用户的想法，保留第一人称语气
+  - idea_type: 想法类型，从 ["产品", "创作", "学习", "生活", "工作", "社交", "技术", "商业", "其他"] 中选择最匹配的一个
+  - inspiration_source: 灵感来源（如"通勤路上想到的"、"听了某播客"、"跟朋友聊天"等），如果用户提到了来源则提取，否则返回 null
+  - action_suggestion: 这个想法可以怎么做？给 1-2 条具体建议（每条不超过 20 字），如果无法推断则返回空数组
+  - related_tags: 关联标签，1-3 个，自动推断
+  - priority: 从 ["high", "medium", "low"] 中选择，如果用户表达了紧迫感或兴奋情绪则为 high，一般 medium
+
+  # 输入的语音转写文本：
+  {transcript}
+
+# ---------------------------------------------------------------------------
+# 输出 Schema
+# ---------------------------------------------------------------------------
+output_schema:
+  type: object
+  properties:
+    title:
+      type: string
+      maxLength: 15
+      description: 想法标题
+    content:
+      type: string
+      description: 核心内容
+    idea_type:
+      type: string
+      enum: [产品, 创作, 学习, 生活, 工作, 社交, 技术, 商业, 其他]
+      description: 想法类型
+    inspiration_source:
+      type: string
+      nullable: true
+      description: 灵感来源
+    action_suggestion:
+      type: array
+      items:
+        type: string
+      description: 行动建议
+    related_tags:
+      type: array
+      items:
+        type: string
+      description: 关联标签
+    priority:
+      type: string
+      enum: [high, medium, low]
+      description: 优先级
+  required: [title, content, idea_type, inspiration_source, action_suggestion, related_tags, priority]
+
+# ---------------------------------------------------------------------------
+# Markdown 输出模板
+# ---------------------------------------------------------------------------
+markdown_template: |
+  ## 💡 {title}
+
+  > {content}
+
+  **类型**: {idea_type}  **优先级**: {priority}
+
+  {action_suggestion}
+
+  {inspiration_source}
+
+  `{related_tags}`
+
+# ---------------------------------------------------------------------------
+# Notion 字段映射
+# ---------------------------------------------------------------------------
+notion_mapping:
+  database_type: idea_box
+  field_map:
+    title: { property: "想法标题", type: "title" }
+    content: { property: "内容", type: "rich_text" }
+    idea_type: { property: "类型", type: "select" }
+    priority: { property: "优先级", type: "select" }
+    related_tags: { property: "标签", type: "multi_select" }
+    created_at: { property: "记录时间", type: "date" }
+
+# ---------------------------------------------------------------------------
+# 示例
+# ---------------------------------------------------------------------------
+example:
+  transcript: >
+    哎我突然想到，EchoMind 是不是可以加一个功能——就是用户说"帮我整理一下上周的想法"，
+    然后 AI 自动把过去七天的碎片想法按主题聚类，生成一个周报或者主题脑图。
+    这个功能我自己就特别需要，每周日晚上过一遍这周的想法，发现很多都是相关的。
+  output:
+    title: "碎片想法自动聚类周报"
+    content: >
+      我觉得 EchoMind 可以加一个功能，用户说"帮我整理上周的想法"，
+      AI 就把过去七天的碎片想法按主题自动聚类，输出周报或主题脑图。
+      每周日过一遍就会发现很多想法其实是互相关联的。
+    idea_type: "产品"
+    inspiration_source: "使用 EchoMind 时的自发灵感"
+    action_suggestion:
+      - "在 Notion 中画一个功能流程图"
+      - "找 3 个用户确认需求"
+    related_tags: ["产品功能", "AI", "效率"]
+    priority: "high"

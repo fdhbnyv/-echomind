@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EchoMind</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#fff;--bg-muted:#f8fafc;--bg-accent:#f1f5f9;
+    --border:#e2e8f0;--text:#0f172a;--text-muted:#64748b;--text-dim:#94a3b8;
+    --primary:#2563eb;--primary-hover:#1d4ed8;--primary-light:#eff6ff;
+    --success:#16a34a;
+    --radius:0.5rem;--shadow:0 1px 3px rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.05)
+  }
+  body{
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:#f1f5f9;display:flex;justify-content:center;align-items:center;
+    min-height:100vh;color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased
+  }
+  .phone{width:390px;height:844px;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-md)}
+
+  .top-area{flex-shrink:0;border-bottom:1px solid var(--border);background:var(--bg)}
+  .top-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px}
+  .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:calc(var(--radius)-2px);cursor:pointer;color:var(--text-muted);font-size:18px;transition:background .1s}
+  .icon-btn:hover{background:var(--bg-accent)}
+  .top-title{font-size:15px;font-weight:600;letter-spacing:-.3px}
+  .screen{display:none;flex-direction:column;flex:1;overflow-y:auto;scrollbar-width:thin}
+  .screen.active{display:flex}
+
+  /* ===== HOME ===== */
+  .home-io{flex:1;display:flex;flex-direction:column;padding:8px 12px 4px;gap:8px}
+  .input-area{flex:1;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)}
+  .input-area:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+
+  .input-toolbar{display:flex;align-items:center;gap:2px;padding:4px 6px;border-bottom:1px solid var(--border);background:var(--bg-muted);border-radius:var(--radius) var(--radius) 0 0;flex-wrap:wrap}
+  .tb-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text-muted);transition:all .1s;font-family:inherit}
+  .tb-btn:hover{background:var(--bg-accent);color:var(--text)}
+  .tb-btn.active{background:var(--primary-light);color:var(--primary)}
+  .tb-divider{width:1px;height:18px;background:var(--border);margin:0 4px}
+  .tb-spacer{flex:1}
+  .tb-label{font-size:10px;color:var(--text-dim);padding-right:4px;white-space:nowrap}
+
+  .input-textarea{flex:1;width:100%;min-height:140px;border:none;outline:none;resize:none;padding:10px 12px;font-family:inherit;font-size:14px;line-height:1.7;color:var(--text);background:transparent}
+  .input-textarea::placeholder{color:var(--text-dim)}
+
+  .input-actions{display:flex;align-items:center;gap:8px;padding:6px 8px;border-top:1px solid var(--border)}
+  .voice-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all .12s;flex-shrink:0}
+  .voice-btn:hover{border-color:var(--primary);color:var(--primary)}
+  .voice-btn.recording{background:var(--danger);border-color:var(--danger);color:#fff;animation:rec-pulse 1.2s infinite}
+  @keyframes rec-pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 12px rgba(220,38,38,0)}}
+  .voice-btn svg{width:16px;height:16px;fill:currentColor}
+
+  .input-actions .btn-primary{margin-left:auto;padding:7px 20px;border-radius:calc(var(--radius)-2px);border:none;background:var(--primary);color:#fff;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:background .1s}
+  .input-actions .btn-primary:hover{background:var(--primary-hover)}
+  .input-actions .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+  .word-count{font-size:11px;color:var(--text-dim);flex-shrink:0}
+
+  .home-hint{font-size:12px;color:var(--text-dim);text-align:center;padding:6px 0 2px;line-height:1.5}
+
+  .recent-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 4px}
+  .recent-header .label{font-size:12px;font-weight:600;color:var(--text-muted)}
+  .recent-header .action{font-size:12px;color:var(--primary);cursor:pointer;border:none;background:none;font-family:inherit;font-weight:500}
+
+  .recent-list{padding:0 12px 8px}
+  .recent-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer}
+  .recent-item:last-child{border-bottom:none}
+  .recent-icon{width:32px;height:32px;border-radius:calc(var(--radius)-2px);background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  .recent-info{flex:1;min-width:0}
+  .recent-info .rt{font-size:13px;font-weight:500;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .recent-info .rm{font-size:11px;color:var(--text-dim);display:flex;gap:6px;align-items:center}
+  .badge{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+  .badge-voice{background:var(--primary-light);color:var(--primary)}
+  .badge-text{background:var(--bg-accent);color:var(--text-muted)}
+  .badge-synced{color:var(--success)}
+
+  /* ===== RESULT ===== */
+  .result-scroll{flex:1;overflow-y:auto;padding:8px 12px 4px;scrollbar-width:thin}
+  .result-card{border:1px solid var(--border);border-radius:var(--radius);padding:20px;background:var(--bg)}
+  .rc-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .rc-meta .left{font-size:11px;color:var(--text-dim);display:flex;gap:6px;align-items:center}
+  .rc-meta .badge{font-size:10px;padding:2px 8px;border-radius:9999px;background:var(--primary-light);color:var(--primary);font-weight:500}
+
+  .rc-body{font-size:15px;line-height:1.8;color:var(--text)}
+  .rc-body p{margin-bottom:10px}
+  .rc-body p:last-child{margin-bottom:0}
+  .rc-body h2{font-size:16px;font-weight:600;margin-top:18px;margin-bottom:6px;letter-spacing:-.2px}
+  .rc-body h3{font-size:14px;font-weight:600;margin-top:14px;margin-bottom:4px}
+  .rc-body ul{padding-left:18px;margin-bottom:10px;list-style:disc}
+  .rc-body ul li{margin-bottom:3px}
+  .rc-body ol{padding-left:18px;margin-bottom:10px}
+  .rc-body ol li{margin-bottom:3px}
+  .rc-body strong{font-weight:600}
+  .rc-body .tag{display:inline-block;padding:2px 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-accent);color:var(--text-muted);margin:2px 4px 2px 0}
+
+  .result-actions{display:flex;gap:8px;padding:10px 12px 14px;flex-shrink:0}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;border-radius:calc(var(--radius)-2px);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;transition:all .12s;border:1px solid transparent}
+  .btn-primary{flex:1;background:var(--primary);color:#fff;border-color:var(--primary)}
+  .btn-primary:hover{background:var(--primary-hover)}
+  .btn-outline{background:var(--bg);color:var(--text);border-color:var(--border)}
+  .btn-outline:hover{background:var(--bg-accent)}
+  .btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+  .btn-success:hover{opacity:.9}
+
+  /* ===== HISTORY ===== */
+  .hist-list{padding:0 12px}
+  .hist-item{display:flex;align-items:flex-start;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+  .hist-item:last-child{border-bottom:none}
+
+  /* ===== SETTINGS ===== */
+  .set-group{margin-bottom:16px}
+  .sg-title{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;padding:10px 12px 4px}
+  .set-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;min-height:40px}
+  .set-row.b-b{border-bottom:1px solid var(--border)}
+  .set-row .sl{font-size:14px}
+  .set-row .sv{font-size:13px;color:var(--text-muted)}
+  .set-row .sv.success{color:var(--success)}
+
+  .switch{width:34px;height:20px;border-radius:10px;background:var(--border);position:relative;cursor:pointer;transition:background .12s;border:none;padding:0;flex-shrink:0}
+  .switch.on{background:var(--primary)}
+  .switch::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .12s;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .switch.on::after{transform:translateX(14px)}
+
+  .proc-overlay{display:none;position:absolute;inset:0;background:rgba(255,255,255,.92);backdrop-filter:blur(4px);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  .proc-overlay.show{display:flex}
+  .spinner{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .proc-step{font-size:14px;font-weight:500}
+  .proc-detail{font-size:12px;color:var(--text-muted)}
+
+  .toast{position:absolute;bottom:80px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--text);color:#fff;padding:10px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;box-shadow:var(--shadow-md);opacity:0;transition:all .2s;pointer-events:none;z-index:60;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .bottom-bar{display:flex;justify-content:space-around;padding:4px 0 6px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+  .nav-btn{display:flex;flex-direction:column;align-items:center;gap:1px;border:none;background:none;cursor:pointer;padding:4px 16px;color:var(--text-dim);font-size:10px;transition:color .12s;font-family:inherit}
+  .nav-btn.active{color:var(--primary)}
+  .nav-btn svg{width:18px;height:18px;fill:currentColor}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Header -->
+  <div class="top-area">
+    <div class="top-row">
+      <div class="top-title" style="flex:1;text-align:center">EchoMind</div>
+      <div style="position:absolute;right:12px;display:flex;gap:2px">
+        <button class="icon-btn" onclick="showScreen('screen-settings')">⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HOME ===== -->
+  <div class="screen active" id="screen-home">
+    <div class="home-io">
+      <div class="input-area">
+        <div class="input-toolbar">
+          <button class="tb-btn" onclick="wrapText('**','**')" title="加粗"><strong>B</strong></button>
+          <button class="tb-btn" onclick="wrapText('*','*')" title="斜体"><em>I</em></button>
+          <button class="tb-btn" onclick="wrapText('~~','~~')" title="删除线"><s>S</s></button>
+          <div class="tb-divider"></div>
+          <button class="tb-btn" onclick="insertText('## ')" title="标题">H1</button>
+          <button class="tb-btn" onclick="insertText('### ')" title="子标题">H2</button>
+          <div class="tb-divider"></div>
+          <button class="tb-btn" onclick="insertText('\n- ')" title="无序列表">≡</button>
+          <button class="tb-btn" onclick="insertText('\n1. ')" title="有序列表">#</button>
+          <div class="tb-spacer"></div>
+          <span class="tb-label">打字或语音</span>
+        </div>
+        <textarea class="input-textarea" id="inputText" placeholder="把你想说的话打在这里……&#10;&#10;或者点麦克风直接说" oninput="updateCharCount()"></textarea>
+        <div class="input-actions">
+          <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()">
+            <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+          </button>
+          <span class="word-count" id="charCount">0 字</span>
+          <button class="btn-primary" id="submitBtn" onclick="handleSubmit()" disabled>整理</button>
+        </div>
+      </div>
+
+      <div class="home-hint">💡 打字或语音，AI 帮你理清逻辑、排好版</div>
+
+      <div class="recent-header">
+        <span class="label">保存的记录</span>
+        <button class="action" onclick="showScreen('screen-history')">查看全部</button>
+      </div>
+      <div class="recent-list" id="recentList"></div>
+    </div>
+  </div>
+
+  <!-- ===== RESULT ===== -->
+  <div class="screen" id="screen-result">
+    <div class="top-area">
+      <div class="top-row">
+        <button class="icon-btn" onclick="showScreen('screen-home')" style="position:absolute;left:12px">←</button>
+        <div class="top-title" style="flex:1;text-align:center">整理结果</div>
+        <div style="width:36px"></div>
+      </div>
+    </div>
+    <div class="result-scroll" id="resultScroll"></div>
+    <div class="result-actions">
+      <button class="btn btn-primary" onclick="copyResult()">复制</button>
+      <button class="btn btn-success" onclick="syncNotion()">同步到 Notion</button>
+      <button class="btn btn-outline" onclick="showScreen('screen-home')">重来</button>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY ===== -->
+  <div class="screen" id="screen-history">
+    <div class="top-area">
+      <div class="top-row">
+        <button class="icon-btn" onclick="showScreen('screen-home')" style="position:absolute;left:12px">←</button>
+        <div class="top-title" style="flex:1;text-align:center">记录</div>
+        <div style="width:36px"></div>
+      </div>
+    </div>
+    <div class="hist-list" id="histList"></div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div class="screen" id="screen-settings">
+    <div class="top-area">
+      <div class="top-row">
+        <button class="icon-btn" onclick="showScreen('screen-home')" style="position:absolute;left:12px">←</button>
+        <div class="top-title" style="flex:1;text-align:center">设置</div>
+        <div style="width:36px"></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <div class="sg-title">同步</div>
+      <div class="set-row b-b">
+        <span class="sl">Notion</span>
+        <span class="sv success">已连接 ✓</span>
+      </div>
+      <div class="set-row b-b">
+        <span class="sl">目标数据库</span>
+        <span class="sv">随手记</span>
+      </div>
+      <div class="set-row">
+        <span class="sl">自动同步</span>
+        <button class="switch on" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+    <div class="set-group">
+      <div class="sg-title">排版</div>
+      <div class="set-row b-b">
+        <span class="sl">自动添加标题</span>
+        <button class="switch on" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="set-row b-b">
+        <span class="sl">自动识别列表</span>
+        <button class="switch on" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="set-row">
+        <span class="sl">添加标签</span>
+        <button class="switch on" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+    <div class="set-group">
+      <div class="sg-title">录音</div>
+      <div class="set-row b-b">
+        <span class="sl">静音自动结束</span>
+        <button class="switch on" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+    <div class="set-group">
+      <div class="sg-title">数据</div>
+      <div class="set-row b-b">
+        <span class="sl">本地记录数</span>
+        <span class="sv" id="recordCount">5 条</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Processing -->
+  <div class="proc-overlay" id="procOverlay">
+    <div class="spinner"></div>
+    <div class="proc-step" id="procStep">正在整理...</div>
+    <div class="proc-detail" id="procDetail">AI 帮你理清逻辑、排好版</div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-bar">
+    <button class="nav-btn active" onclick="showScreen('screen-home')">
+      <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>写</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen('screen-history')">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      <span>记录</span>
+    </button>
+    <button class="nav-btn" onclick="showScreen('screen-settings')">
+      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <span>设置</span>
+    </button>
+  </div>
+</div>
+
+<script>
+  // ===== Saved entries =====
+  let savedEntries = [
+    { id:1, title:'完成访谈报告 & 跑步 5 公里', mode:'voice', date:'7月3日 21:30', synced:true,
+      raw:'今天终于把那个用户访谈报告写完了拖了一周了都下午开了个团队会感觉大家意见不太统一有点烦晚上跑了5公里舒服多了',
+      formatted:'今天终于把拖延了一周的用户访谈报告写完了。\n\n下午开了团队会，讨论了下一期的排期。大家意见不太统一，有点烦。\n\n晚上跑了 5 公里，舒服多了。',
+      tags:['工作','健康','运动'] },
+    { id:2, title:'碎片想法自动聚类的产品思路', mode:'text', date:'7月3日 14:15', synced:true,
+      raw:'哎我突然想到EchoMind是不是可以加一个功能就是用户说帮我整理一下上周的想法然后AI自动聚类',
+      formatted:'## 产品思路\n\nEchoMind 可以加一个功能：\n\n> 用户说"帮我整理上周的想法"，AI 自动把过去七天的碎片想法按主题聚类，生成周报或主题脑图。\n\n这个功能我自己就特别需要——每周日过一遍这周的想法，发现很多都是互相关联的。',
+      tags:['产品功能','AI','效率'] },
+    { id:3, title:'产品周会 - 转写速度 & 排期', mode:'voice', date:'7月3日 10:00', synced:false,
+      raw:'今天下午开了个产品周会主要讨论了录音转写速度优化首页改版推迟下周准备V2模板市场',
+      formatted:'**产品周会 — 2026.07.03**\n\n参与人：我、老王、小李、小陈\n\n**讨论了三件事：**\n\n1. **录音转写速度优化** — 用户反馈延迟过高，需要缩短响应时间\n2. **首页改版排期** — 推迟到下一版本\n3. **V2 模板市场** — 下周启动 MVP\n\n**行动项：**\n- 老王：优化响应（下周五前）\n- 我：整理用户反馈文档（周四前）',
+      tags:['工作','产品','会议'] },
+    { id:4, title:'周末计划 & 想读的书', mode:'text', date:'7月2日 22:00', synced:true,
+      raw:'周末打算把家里收拾一下然后去图书馆借几本书想看那本思考快与慢还有原子习惯',
+      formatted:'## 周末计划\n\n- 收拾家里\n- 去图书馆借书\n\n**想读的书：**\n\n1. 《思考快与慢》\n2. 《原子习惯》\n3. 《也许你该找个人聊聊》',
+      tags:['生活','阅读'] },
+    { id:5, title:'EchoMind 定价策略的想法', mode:'voice', date:'7月2日 09:30', synced:false,
+      raw:'在想EchoMind的定价到底应该怎么定对标AudioPen是8美金一个月但我们的能力更强',
+      formatted:'## 定价思路\n\n对标 AudioPen（$8/月），但我们的能力更强。\n\n初步想法：\n\n- **免费版**：30 条/月\n- **Pro 版**：$5/月 或 $48/年\n\n关键是让用户在免费期内感受到价值。',
+      tags:['商业化','定价'] }
+  ];
+
+  let nextId = 6;
+  let isVoice = false;
+  let lastResult = null;
+
+  // ===== Init =====
+  renderRecent();
+  renderHistory();
+  updateCharCount();
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    const m={'screen-home':0,'screen-history':1,'screen-settings':2}[id];
+    if(m!==undefined) document.querySelectorAll('.nav-btn')[m].classList.add('active');
+    if(id==='screen-home') updateCharCount();
+    if(id==='screen-settings') document.getElementById('recordCount').textContent=savedEntries.length+' 条';
+  }
+
+  function updateCharCount(){
+    const len=document.getElementById('inputText').value.length;
+    document.getElementById('charCount').textContent=len+' 字';
+    document.getElementById('submitBtn').disabled=len===0;
+  }
+
+  // ===== Toolbar =====
+  function wrapText(before, after) {
+    const ta=document.getElementById('inputText');
+    const s=ta.selectionStart, e=ta.selectionEnd;
+    const text=ta.value;
+    if(s===e) { insertText(before+after); ta.selectionStart=ta.selectionEnd=s+before.length; return; }
+    ta.value=text.slice(0,s)+before+text.slice(s,e)+after+text.slice(e);
+    ta.focus(); ta.selectionStart=s; ta.selectionEnd=e+before.length+after.length;
+    updateCharCount();
+  }
+  function insertText(text) {
+    const ta=document.getElementById('inputText');
+    const s=ta.selectionStart, e=ta.selectionEnd;
+    ta.value=ta.value.slice(0,s)+text+ta.value.slice(e);
+    ta.focus(); ta.selectionStart=ta.selectionEnd=s+text.length;
+    updateCharCount();
+  }
+
+  // ===== Voice =====
+  function toggleVoice() {
+    const b=document.getElementById('voiceBtn'), ta=document.getElementById('inputText');
+    if(!isVoice){
+      isVoice=true; b.classList.add('recording');
+      b.innerHTML=`<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+      ta.placeholder='录音中，说完点停止...';
+    } else {
+      isVoice=false; b.classList.remove('recording');
+      b.innerHTML=`<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`;
+      ta.placeholder='把你想说的话打在这里……';
+      if(ta.value.length===0){
+        ta.value='今天跟老王聊了聊下一步的计划觉得产品方向是对的但执行节奏需要调整他建议先聚焦一个核心场景别贪多我觉得有道理';
+        updateCharCount();
+      }
+    }
+  }
+
+  // ===== Submit =====
+  function handleSubmit() {
+    const text=document.getElementById('inputText').value.trim();
+    if(!text) return;
+    const mode=isVoice?'voice':'text';
+    showProc(text, mode);
+  }
+
+  function showProc(rawText, mode) {
+    const o=document.getElementById('procOverlay'); o.classList.add('show');
+    const steps=[{s:'正在理解内容...',d:'分析逻辑和重点'},{s:'正在优化排版...',d:'调整段落和结构'},{s:'正在生成...',d:'添加标题和格式'}];
+    let i=0; const el=document.getElementById('procStep'),ed=document.getElementById('procDetail');
+    const iv=setInterval(()=>{i++;if(i>=steps.length){
+      clearInterval(iv);o.classList.remove('show');
+      // Generate a result
+      const entry = generateResult(rawText, mode);
+      lastResult = entry;
+      displayResult(entry);
+      return;}
+      el.textContent=steps[i].s;ed.textContent=steps[i].d;},500);
+  }
+
+  function generateResult(raw, mode) {
+    // Simple formatting simulation
+    const lines = raw.replace(/[，。]/g, '$&\n').split('\n').filter(l=>l.trim());
+    let formatted = '';
+    let tags = [];
+
+    if (raw.includes('工作')||raw.includes('开会')||raw.includes('报告')||raw.includes('项目')) tags.push('工作');
+    if (raw.includes('健康')||raw.includes('跑步')||raw.includes('运动')||raw.includes('健身')) tags.push('健康');
+    if (raw.includes('读')||raw.includes('书')||raw.includes('学习')) tags.push('阅读');
+    if (raw.includes('产品')||raw.includes('功能')||raw.includes('设计')) tags.push('产品');
+    if (raw.includes('定价')||raw.includes('钱')||raw.includes('付费')||raw.includes('商业化')) tags.push('商业化');
+    if (!tags.length) tags=['随记'];
+
+    formatted = '## 随手记\n\n';
+    formatted += lines.map((l,i)=>{
+      if(l.length>20) return l;
+      return l;
+    }).join('\n\n');
+
+    const title = raw.length>18 ? raw.slice(0,18)+'...' : raw;
+
+    const entry = {
+      id: nextId++, title, mode, date: (new Date()).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}),
+      synced: false, raw, formatted, tags
+    };
+    savedEntries.unshift(entry);
+    renderRecent(); renderHistory();
+    document.getElementById('inputText').value=''; updateCharCount();
+    return entry;
+  }
+
+  // ===== Display Result =====
+  function displayResult(entry) {
+    const d = entry;
+    const lines = d.formatted.split('\n');
+    let html = lines.map(l=>{
+      if(l.startsWith('## ')) return '<h2>'+l.slice(3)+'</h2>';
+      if(l.startsWith('### ')) return '<h3>'+l.slice(4)+'</h3>';
+      if(l.startsWith('> ')) return '<blockquote style="border-left:3px solid var(--border);padding-left:12px;color:var(--text-muted);margin:8px 0">'+l.slice(2)+'</blockquote>';
+      if(l.startsWith('- ')) return '<li>'+l.slice(2)+'</li>';
+      if(l.match(/^\d+\.\s/)) return '<li>'+l+'</li>';
+      if(l.startsWith('**')&&l.endsWith('**')) return '<p><strong>'+l.replace(/\*\*/g,'')+'</strong></p>';
+      // inline bold
+      let pl = l.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+      if(pl.trim()==='') return '';
+      if(pl.trim()) return '<p>'+pl+'</p>';
+      return '';
+    }).join('\n');
+
+    // Wrap lists
+    html=html.replace(/((?:<li>.*?<\/li>\n?)+)/g,'<ul>$1</ul>');
+    html=html.replace(/<ul>(\s*<li>\d+\.\s)/g,'<ol>$1');
+    html=html.replace(/<\/li>\s*<\/ul>/g,'</li></ol>');
+
+    let modeBadge = d.mode==='voice'?'🎤 语音输入':'⌨️ 文字输入';
+
+    let full=`
+      <div class="result-card">
+        <div class="rc-meta">
+          <span class="left">${modeBadge} · ${d.date}</span>
+          <span class="badge">AI 整理</span>
+        </div>
+        <div class="rc-body">
+          ${html}
+          <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+            ${d.tags.map(t=>'<span class="tag">#'+t+'</span>').join('')}
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('resultScroll').innerHTML=full;
+    showScreen('screen-result');
+  }
+
+  // ===== Show saved entry =====
+  function showEntry(id) {
+    const entry = savedEntries.find(e=>e.id===id);
+    if(!entry) return;
+    lastResult = entry;
+    displayResult(entry);
+  }
+
+  // ===== Copy =====
+  function copyResult() {
+    const text=document.querySelector('.rc-body')?.innerText||'';
+    if(!text) return;
+    navigator.clipboard.writeText(text).then(()=>showToast('✓ 已复制')).catch(()=>showToast('✓ 已复制'));
+  }
+
+  // ===== Notion Sync =====
+  function syncNotion() {
+    showToast('⏳ 同步中...');
+    setTimeout(()=>{
+      const meta=document.querySelector('.rc-meta .badge');
+      if(meta) meta.textContent='已同步 ✓';
+      if(lastResult) { lastResult.sync=true; }
+      renderRecent(); renderHistory();
+      showToast('✓ 已同步到 Notion');
+    },1200);
+  }
+
+  // ===== Render Lists =====
+  function renderRecent() {
+    const list = document.getElementById('recentList');
+    list.innerHTML = savedEntries.slice(0,3).map(e=>`
+      <div class="recent-item" onclick="showEntry(${e.id})">
+        <div class="recent-icon">📝</div>
+        <div class="recent-info">
+          <div class="rt">${e.title}</div>
+          <div class="rm">
+            <span class="badge ${e.mode==='voice'?'badge-voice':'badge-text'}">${e.mode==='voice'?'🎤 语音':'⌨️ 文字'}</span>
+            <span>${e.date}</span>
+            ${e.synced?'<span class="badge-synced">✓ 已同步</span>':'<span style="color:var(--warning)">⏳ 未同步</span>'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('histList');
+    if(!list) return;
+    list.innerHTML = savedEntries.map(e=>`
+      <div class="hist-item" onclick="showEntry(${e.id})">
+        <div class="recent-icon">📝</div>
+        <div class="recent-info">
+          <div class="rt">${e.title}</div>
+          <div class="rm">
+            <span class="badge ${e.mode==='voice'?'badge-voice':'badge-text'}">${e.mode==='voice'?'🎤':'⌨️'}</span>
+            <span>${e.date}</span>
+            ${e.synced?'<span class="badge-synced">✓ 已同步</span>':'<span style="color:var(--warning)">⏳</span>'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ===== Toast =====
+  function showToast(msg) {
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),1500);
+  }
+</script>
+</body>
+</html>
