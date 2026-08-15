@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EchoMind logo icon: a minimal sound wave + mind/thought symbol -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Left sound wave bar -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M4,12h2v4H4z" />
+
+    <!-- Middle-left bar (higher) -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M8,9h2v10H8z" />
+
+    <!-- Center bar (tallest) -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M12,5h2v18H12z" />
+
+    <!-- Middle-right bar -->
+    <path
+        android:fillColor="#60A5FA"
+        android:pathData="M16,9h2v10H16z" />
+
+    <!-- Right bar -->
+    <path
+        android:fillColor="#60A5FA"
+        android:pathData="M20,12h2v4H20z" />
+
+    <!-- Small dot/thought above -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M17,3.5A1.5,1.5 0,1,1 17,6.5A1.5,1.5 0,1,1 17,3.5z" />
+
+    <!-- Connection line from dot to waves -->
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M15.5,6.5L14,9" />
+</vector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">声念</string>
+    <string name="record_button">开始录音</string>
+    <string name="stop_button">停止录音</string>
+    <string name="processing">处理中…</string>
+    <string name="home_title">声念 EchoMind</string>
+    <string name="home_subtitle">说出你的想法，AI 自动整理</string>
+    <string name="template_daily_review">每日复盘</string>
+    <string name="template_quick_idea">碎片想法</string>
+    <string name="template_meeting_notes">会议纪要</string>
+    <string name="settings">设置</string>
+    <string name="api_key_not_set">API Key 未配置，请在设置中填入</string>
+    <string name="widget_description">一键启动 EchoMind 录音</string>
+</resources>

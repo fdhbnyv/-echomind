@@ -1,0 +1,26 @@
+# Android build outputs
+android/app/build/
+android/build/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Gradle
+android/.gradle/
+android/gradle/wrapper/gradle-wrapper.jar
+android/local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Kotlin/Native
+*.klib
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
