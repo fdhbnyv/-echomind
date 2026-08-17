@@ -1,7 +1,7 @@
 # ============================================================================
 # 模板：会议纪要 (Meeting Notes)
 # 文件: templates/meeting-notes.yaml
-# 版本: v1.0
+# 版本: v2.0
 # 说明: 用户会后口述会议要点和行动项，AI 提取成结构化会议纪要
 # ============================================================================
 
@@ -14,7 +14,7 @@ meta:
     行动项和负责人的结构化会议纪要。
   icon: 📋
   category: work
-  version: 1.0.0
+  version: 2.0.0
   author: EchoMind 官方
   tags: [会议, 工作, 行动项]
 
@@ -22,35 +22,54 @@ meta:
 # LLM 结构化 prompt
 # ---------------------------------------------------------------------------
 llm_prompt: |
-  # 角色
-  你是一个专业的会议纪要助手，擅长从口述录音中提取会议关键信息。
+  你是 EchoMind 会议纪要助手，擅长从口述录音中提取会议关键信息并结构化。
 
-  # 任务
-  将用户的口述语音转写文本，按「会议纪要」模板整理为结构化笔记。
-  用户可能口述的顺序是混乱的，你需要按逻辑重组。
+  ## 任务
+  阅读下方「语音转写文本」，按逻辑重组口述内容，按指定 JSON Schema 输出纯 JSON。
 
-  # 输出要求
-  严格按照以下 JSON Schema 输出纯 JSON，不要添加任何标记。
+  ## 输出要求
+  - 严格输出合法 JSON，不要包含任何 markdown 代码块标记（不要 ```）
+  - 不要输出任何解释文字
+  - 所有字段按 Schema 要求填充
 
-  # 字段提取规则
-  - meeting_title: 为这次会议取一个简洁的名称（如"产品周会"、"需求评审会"），不超过 20 字。如果用户没提会议名称，根据内容推断
-  - date: 会议日期，默认为当天
-  - participants: 参与人列表，从语音中提取人名，如果用户没提到具体人名则返回 ["未提及"]
-  - key_decisions: 关键决策，逐条列出，每条不超过 40 字；如果没提到则返回空数组
-  - discussion_points: 讨论要点，2-5 个核心议题，每个包含议题标题和简述；如果没提到则返回空数组
-  - action_items: 行动项，从语音中识别责任人+任务+DDL 的结构。每项包含：
-    - task: 任务描述（不超过 30 字）
-    - assignee: 责任人，如果用户没明确说谁负责则返回 "待定"
-    - deadline: 截止日期 ISO 8601，如果提到了时间
-  - next_meeting: 下次会议时间，如果有提到则提取，否则返回 null
-  - tags: 标签，1-3 个，自动推断
+  ## 字段提取规则
 
-  # 时间表达式处理
-  - "下周五之前" → 计算具体日期
+  ### meeting_title（必填，字符串，≤20字）
+  为这次会议取一个简洁的名称（如"产品周会""需求评审会""Q3规划会"）。没提及则根据内容推断。
+
+  ### date（必填，字符串）
+  会议日期（YYYY-MM-DD），默认为今天。
+
+  ### participants（必填，字符串数组）
+  从语音中提取参与人名。没提到具体人名则 ["未提及"]。
+
+  ### key_decisions（必填，字符串数组）
+  关键决策，逐条列出，每条 ≤40字。没提到则 []。
+
+  ### discussion_points（必填，数组）
+  讨论要点，2–5 个核心议题。每项包含：
+  - topic: 议题标题（≤20字）
+  - summary: 简述（≤50字）
+  没提到则 []。
+
+  ### action_items（必填，数组）
+  行动项，从语音中识别"责任人+任务+DDL"的结构。每项：
+  - task: 任务描述（≤30字）
+  - assignee: 责任人，没明确则 "待定"
+  - deadline: ISO 8601 日期，只在全用户明确提到时间时填写，否则 null
+  时间表达式处理：
+  - "下周五之前" → 计算具体日期 T23:59:59
   - "这周四" → 本周四的日期
   - "明天下班前" → 次日 18:00
+  - "有空再说" → null
 
-  # 输入的语音转写文本：
+  ### next_meeting（可选，字符串或null）
+  下次会议时间，如有提到则提取为 ISO 8601，否则 null。
+
+  ### tags（必填，字符串数组，1–3个）
+  自动推断的标签。
+
+  ## 语音转写文本
   {transcript}
 
 # ---------------------------------------------------------------------------
@@ -58,6 +77,7 @@ llm_prompt: |
 # ---------------------------------------------------------------------------
 output_schema:
   type: object
+  required: [meeting_title, date, participants, key_decisions, discussion_points, action_items, next_meeting, tags]
   properties:
     meeting_title:
       type: string
@@ -65,6 +85,7 @@ output_schema:
       description: 会议标题
     date:
       type: string
+      pattern: "^\\d{4}-\\d{2}-\\d{2}$"
       description: 会议日期 (YYYY-MM-DD)
     participants:
       type: array
@@ -83,9 +104,11 @@ output_schema:
         properties:
           topic:
             type: string
+            maxLength: 20
             description: 议题
           summary:
             type: string
+            maxLength: 50
             description: 简述
       description: 讨论要点
     action_items:
@@ -95,6 +118,7 @@ output_schema:
         properties:
           task:
             type: string
+            maxLength: 30
             description: 任务
           assignee:
             type: string
@@ -102,18 +126,19 @@ output_schema:
           deadline:
             type: string
             nullable: true
-            description: 截止日期
+            pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$"
+            description: 截止日期 (ISO 8601)，仅当用户明确提到时间
       description: 行动项
     next_meeting:
       type: string
       nullable: true
+      pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$"
       description: 下次会议时间
     tags:
       type: array
       items:
         type: string
       description: 标签
-  required: [meeting_title, date, participants, key_decisions, discussion_points, action_items, next_meeting, tags]
 
 # ---------------------------------------------------------------------------
 # Markdown 输出模板
@@ -136,7 +161,7 @@ markdown_template: |
   |------|--------|---------|
   {action_items_table}
 
-  {next_meeting}
+  **下次会议**: {next_meeting}
 
   `{tags}`
 
