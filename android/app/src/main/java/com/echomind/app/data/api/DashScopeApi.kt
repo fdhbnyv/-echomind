@@ -145,17 +145,26 @@ class DashScopeApi {
         transcription: String,
         templateType: String = "auto",
         model: String = "qwen-max",
+        memoryRepository: com.echomind.app.data.memory.MemoryRepository? = null,
     ): Result<StructuredNote> {
         return try {
             val systemPrompt = TemplatePrompts.getPrompt(templateType)
             val today = java.text.SimpleDateFormat("yyyy年M月d日", java.util.Locale.getDefault()).format(java.util.Date())
             val userMessage = "今天是$today。\n\n$transcription"
 
+            // Inject relevant memories into the prompt if available
+            val finalPrompt = if (memoryRepository != null) {
+                val tags = com.echomind.app.data.model.TemplateType.entries
+                    .map { it.id }
+                    .ifEmpty { emptyList() }
+                com.echomind.app.data.memory.MemoryInjector.injectQuick(systemPrompt, memoryRepository)
+            } else systemPrompt
+
             val qwenRequest = QwenRequest(
                 model = model,
                 input = QwenInput(
                     messages = listOf(
-                        ChatMessage(role = "system", content = systemPrompt),
+                        ChatMessage(role = "system", content = finalPrompt),
                         ChatMessage(role = "user", content = userMessage),
                     )
                 ),
