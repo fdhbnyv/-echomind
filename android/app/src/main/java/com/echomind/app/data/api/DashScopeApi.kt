@@ -147,7 +147,7 @@ class DashScopeApi {
         model: String = "qwen-max",
     ): Result<StructuredNote> {
         return try {
-            val systemPrompt = TemplatePrompts.getSystemPrompt(templateType)
+            val systemPrompt = TemplatePrompts.getPrompt(templateType)
             val today = java.text.SimpleDateFormat("yyyy年M月d日", java.util.Locale.getDefault()).format(java.util.Date())
             val userMessage = "今天是$today。\n\n$transcription"
 
