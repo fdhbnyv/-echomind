@@ -17,6 +17,9 @@ android/local.properties
 .DS_Store
 Thumbs.db
 
+# Tool runtime logs
+.deep-copilot/
+
 # Kotlin/Native
 *.klib
 
