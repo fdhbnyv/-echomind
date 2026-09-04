@@ -72,7 +72,7 @@ fun MemoryEntity.toMemory(): Memory = Memory(
     accessCount = accessCount,
 )
 
-fun Memory.toEntity(id: Long = 0L): MemoryEntity = MemoryEntity(
+fun Memory.toEntity(id: Long = this.id): MemoryEntity = MemoryEntity(
     id = id,
     content = content,
     category = category,

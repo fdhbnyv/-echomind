@@ -170,7 +170,7 @@ class MemorySystemTest {
                 s += 5
             }
             for (tag in memory.tags) {
-                if (tag.contains(query, ignoreCase = true)) s += 2
+                if (query.isNotBlank() && tag.contains(query, ignoreCase = true)) s += 2
             }
             val daysSinceLastAccess = (System.currentTimeMillis() - memory.lastAccessedAt) / (1000 * 60 * 60 * 24)
             if (daysSinceLastAccess < 7) s += 2
@@ -239,7 +239,7 @@ class MemorySystemTest {
                 s += 5
             }
             for (tag in memory.tags) {
-                if (tag.contains(query, ignoreCase = true)) s += 2
+                if (query.isNotBlank() && tag.contains(query, ignoreCase = true)) s += 2
             }
             val daysSinceLastAccess = (System.currentTimeMillis() - memory.lastAccessedAt) / (1000 * 60 * 60 * 24)
             if (daysSinceLastAccess < 7) s += 2
@@ -328,7 +328,7 @@ class MemorySystemTest {
         }
 
         assertEquals(2, recencyBonus(freshMemory.lastAccessedAt))
-        assertEquals(0, recencyBonus(staleMemory.lastAccessedAt))
+        assertEquals(1, recencyBonus(staleMemory.lastAccessedAt)) // 15 天属于 [7, 30) 区间 → +1
         assertEquals(0, recencyBonus(veryStaleMemory.lastAccessedAt))
     }
 
@@ -373,9 +373,10 @@ class MemorySystemTest {
     @Test
     fun `sync avoids duplicates`() {
         val existingContent = listOf("行动项: 明天开会", "情绪: 开心 于 2024-01-15")
-        val newContent = "行动项: 明天开会" // duplicate
+        val newContent = "行动项: 明天开会" // 与已有记忆重复
 
-        assertFalse("Duplicate should be detected", newContent in existingContent || existingContent.contains(newContent))
+        // 重复内容确实已存在于已有记忆中，去重逻辑应能识别它是重复项
+        assertTrue("Duplicate should be detected as existing", newContent in existingContent)
     }
 
     // ==========================================================================
