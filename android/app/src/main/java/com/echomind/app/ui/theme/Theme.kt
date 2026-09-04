@@ -12,48 +12,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private val GlassLightColorScheme = lightColorScheme(
-    primary = Primary,
-    onPrimary = Color.White,
-    primaryContainer = PrimaryLight,
-    onPrimaryContainer = Primary,
-    secondary = TextMuted,
-    onSecondary = Color.White,
-    background = Background,
-    onBackground = TextPrimary,
-    surface = SurfaceGlass,
-    onSurface = TextOnGlass,
-    surfaceVariant = SurfaceGlassDark,
-    onSurfaceVariant = TextMuted,
-    outline = BorderStroke,
-    outlineVariant = BorderStroke,
-    error = RecordingPulse,
-    onError = Color.White,
-    errorContainer = RecordingPulseLight,
-    onErrorContainer = RecordingPulse,
-)
-
-private val GlassDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF60A5FA),
-    onPrimary = DarkBg,
-    primaryContainer = Color(0x3360A5FA),
-    onPrimaryContainer = Color(0xFF93C5FD),
-    secondary = Color(0xFF94A3B8),
-    onSecondary = DarkBg,
-    background = DarkBg,
-    onBackground = Color(0xFFF1F5F9),
-    surface = DarkSurface,
-    onSurface = Color(0xFFF1F5F9),
-    surfaceVariant = Color(0xCC1E293B),
-    onSurfaceVariant = Color(0xFF94A3B8),
-    outline = DarkBorder,
-    outlineVariant = DarkBorder,
-    error = Color(0xFFF87171),
-    onError = DarkBg,
-    errorContainer = Color(0x33F87171),
-    onErrorContainer = Color(0xFFF87171),
-)
-
 private val AppTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -121,6 +79,28 @@ private val AppTypography = Typography(
     ),
 )
 
+/** 衬线标题字体（纸语等温和场景） */
+private val SerifTitleTypography = AppTypography.run {
+    copy(
+        displayLarge = displayLarge.copy(fontFamily = FontFamily.Serif),
+        headlineMedium = headlineMedium.copy(fontFamily = FontFamily.Serif),
+        titleLarge = titleLarge.copy(fontFamily = FontFamily.Serif),
+        titleMedium = titleMedium.copy(fontFamily = FontFamily.Serif),
+        titleSmall = titleSmall.copy(fontFamily = FontFamily.Serif),
+    )
+}
+
+/** 超粗标题字重（墨线等张扬场景） */
+private val BoldTitleTypography = AppTypography.run {
+    copy(
+        displayLarge = displayLarge.copy(fontWeight = FontWeight.Black),
+        headlineMedium = headlineMedium.copy(fontWeight = FontWeight.Black),
+        titleLarge = titleLarge.copy(fontWeight = FontWeight.Black),
+        titleMedium = titleMedium.copy(fontWeight = FontWeight.Black),
+        titleSmall = titleSmall.copy(fontWeight = FontWeight.Bold),
+    )
+}
+
 @Composable
 fun EchoMindTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -147,5 +127,10 @@ fun EchoMindTheme(
             error = tc.error, onError = Color.White,
         )
     }
-    MaterialTheme(colorScheme = colorScheme, typography = AppTypography, content = content)
+    val typography = when (theme.typography) {
+        ThemeTypography.SERIF -> SerifTitleTypography
+        ThemeTypography.BOLD -> BoldTitleTypography
+        ThemeTypography.SANS -> AppTypography
+    }
+    MaterialTheme(colorScheme = colorScheme, typography = typography, content = content)
 }

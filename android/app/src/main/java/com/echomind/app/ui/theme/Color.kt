@@ -1,46 +1,56 @@
 package com.echomind.app.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // ═══════════════════════════════════════════════════════════════
-// 液态玻璃 (Liquid Glass) 色彩系统
+// 主题响应式色彩系统
+//
+// 所有颜色均为 @Composable 属性，读取 ThemeManager 当前主题（含系统深浅色），
+// 主题切换后会自动触发重组。旧组件中的静态色引用无需改动即可跟随主题。
 // ═══════════════════════════════════════════════════════════════
 
+/** 当前主题配色（跟随系统深浅色） */
+@Composable
+private fun currentThemeColors(): ThemeColors =
+    if (isSystemInDarkTheme()) ThemeManager.darkColors() else ThemeManager.lightColors()
+
 // 基底
-val Background = Color(0xFFF2F5FB)           // 背景：极浅蓝灰
-val BackgroundGradientEnd = Color(0xFFE8EEF6) // 渐变终点
-val SurfaceGlass = Color(0xE6FFFFFF)          // 玻璃表面：白 90% 透明度
-val SurfaceGlassDark = Color(0xCCFFFFFF)      // 玻璃表面：白 80% 透明度
+val Background: Color @Composable get() = currentThemeColors().bg
+val BackgroundGradientEnd: Color @Composable get() = currentThemeColors().bgGradientEnd
+val SurfaceGlass: Color @Composable get() = currentThemeColors().surface
+val SurfaceGlassDark: Color @Composable get() = currentThemeColors().surfaceVariant
 
 // 边框与阴影
-val BorderLight = Color(0x4Dffffff)           // 玻璃边框：白 30%
-val BorderStroke = Color(0x1A475569)          // 描边：极淡灰
-val ShadowColor = Color(0x1A2563EB)           // 阴影：主色 10%
+val BorderLight: Color @Composable get() = currentThemeColors().borderLight
+val BorderStroke: Color @Composable get() = currentThemeColors().border
+val ShadowColor: Color @Composable get() = currentThemeColors().primaryLight
 
 // 文字
-val TextPrimary = Color(0xFF0F172A)
-val TextMuted = Color(0xFF64748B)
-val TextDim = Color(0xFF94A3B8)
-val TextOnGlass = Color(0xFF1E293B)           // 玻璃上的文字
+val TextPrimary: Color @Composable get() = currentThemeColors().textPrimary
+val TextMuted: Color @Composable get() = currentThemeColors().textMuted
+val TextDim: Color @Composable get() = currentThemeColors().textDim
+val TextOnGlass: Color @Composable get() = currentThemeColors().textPrimary
 
 // 主色
-val Primary = Color(0xFF2563EB)
-val PrimaryHover = Color(0xFF1D4ED8)
-val PrimaryLight = Color(0x1A2563EB)          // 主色 10% 透明度
-val PrimaryGlass = Color(0x1A2563EB)          // 主色玻璃态
+val Primary: Color @Composable get() = currentThemeColors().primary
+val PrimaryHover: Color @Composable get() = currentThemeColors().primary
+val PrimaryLight: Color @Composable get() = currentThemeColors().primaryLight
+val PrimaryGlass: Color @Composable get() = currentThemeColors().primaryLight
 
 // 功能色
-val Success = Color(0xFF10B981)               // 翠绿
-val SuccessLight = Color(0x1A10B981)
-val RecordingPulse = Color(0xFFEF4444)        // 录音红
-val RecordingPulseLight = Color(0x1AEF4444)
+val Success: Color @Composable get() = currentThemeColors().success
+val SuccessLight: Color @Composable get() = currentThemeColors().success.copy(alpha = 0.1f)
+val RecordingPulse: Color @Composable get() = currentThemeColors().error
+val RecordingPulseLight: Color @Composable get() = currentThemeColors().error.copy(alpha = 0.1f)
 
-// 暗色
-val DarkBg = Color(0xFF0F172A)
-val DarkSurface = Color(0xE61E293B)
-val DarkBorder = Color(0x33FFFFFF)
+// 暗色兼容别名（旧组件引用，均跟随主题）
+val DarkBg: Color @Composable get() = currentThemeColors().bg
+val DarkSurface: Color @Composable get() = currentThemeColors().surface
+val DarkBorder: Color @Composable get() = currentThemeColors().border
 
-// 兼容别名（旧组件引用）
-val BgAccent = Color(0x1A2563EB)
-val BgMuted = Color(0xFFF2F5FB)
-val Border = Color(0x1A475569)
+// 兼容别名（旧组件引用，均跟随主题）
+val BgAccent: Color @Composable get() = currentThemeColors().primaryLight
+val BgMuted: Color @Composable get() = currentThemeColors().surfaceVariant
+val Border: Color @Composable get() = currentThemeColors().border

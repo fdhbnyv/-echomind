@@ -3,6 +3,22 @@ package com.echomind.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ==============================
+// Theme typography style selector
+// ==============================
+
+/** 主题对应的标题字体风格 */
+enum class ThemeTypography {
+    /** 无衬线（默认） */
+    SANS,
+
+    /** 衬线标题（纸语等温和场景） */
+    SERIF,
+
+    /** 超粗字重（墨线等张扬场景） */
+    BOLD,
+}
+
+// ==============================
 // Theme style selector
 // ==============================
 
@@ -11,14 +27,43 @@ enum class AppTheme(
     val displayName: String,
     val icon: String,
     val description: String,
+    val typography: ThemeTypography,
     val light: ThemeColors,
     val dark: ThemeColors,
 ) {
+    SOUND_GLOW(
+        id = "shengguang",
+        displayName = "声光",
+        icon = "🌌",
+        description = "深空玻璃 · 电光声核，旗舰暗色质感",
+        typography = ThemeTypography.SANS,
+        light = lightSoundGlow,
+        dark = darkSoundGlow,
+    ),
+    PAPER_POEM(
+        id = "zhiyu",
+        displayName = "纸语",
+        icon = "📜",
+        description = "暖白纸感 · 墨色声纹环，衬线安静复盘",
+        typography = ThemeTypography.SERIF,
+        light = lightPaperPoem,
+        dark = darkPaperPoem,
+    ),
+    INK_LINE(
+        id = "moxian",
+        displayName = "墨线",
+        icon = "🖋",
+        description = "高对比描边 · 漫画张力，红黑撞色",
+        typography = ThemeTypography.BOLD,
+        light = lightInkLine,
+        dark = darkInkLine,
+    ),
     MANGA(
         id = "manga",
         displayName = "漫画風",
         icon = "🎭",
         description = "高对比、纯黑轮廓、暴走气氛",
+        typography = ThemeTypography.SANS,
         light = lightManga,
         dark = darkManga,
     ),
@@ -27,6 +72,7 @@ enum class AppTheme(
         displayName = "液态玻璃",
         icon = "💧",
         description = "半透明玻璃质感，温柔光影",
+        typography = ThemeTypography.SANS,
         light = lightGlass,
         dark = darkGlass,
     ),
@@ -35,6 +81,7 @@ enum class AppTheme(
         displayName = "简约白",
         icon = "⬜",
         description = "白净纯粹，极致简约",
+        typography = ThemeTypography.SANS,
         light = lightMinimalWhite,
         dark = darkMinimalWhite,
     ),
@@ -43,6 +90,7 @@ enum class AppTheme(
         displayName = "简约黑",
         icon = "⚫",
         description = "深黑底色，高对比字体",
+        typography = ThemeTypography.SANS,
         light = lightMinimalBlack,
         dark = darkMinimalBlack,
     ),
@@ -51,6 +99,7 @@ enum class AppTheme(
         displayName = "纸质风",
         icon = "📄",
         description = "暖白纸张底色，温柔记事本感",
+        typography = ThemeTypography.SANS,
         light = lightPaper,
         dark = darkPaper,
     ),
@@ -59,6 +108,7 @@ enum class AppTheme(
         displayName = "翠绿风",
         icon = "🌿",
         description = "翡翠绿主色，清新自然",
+        typography = ThemeTypography.SANS,
         light = lightEmerald,
         dark = darkEmerald,
     ),
@@ -89,6 +139,114 @@ data class ThemeColors(
 // ==============================
 // Color definitions per theme
 // ==============================
+
+// ----- 声光 (Sound Glow) · 设计稿方向 A：深空玻璃 + 电光声核 -----
+val lightSoundGlow = ThemeColors(
+    name = "声光 亮",
+    bg = Color(0xFFEFF3FA),
+    bgGradientEnd = Color(0xFFE4EBF6),
+    surface = Color(0xFFF8FAFE),
+    surfaceVariant = Color(0xFFEDF2FA),
+    border = Color(0xFFD6E0EF),
+    borderLight = Color(0xFFE7EDF7),
+    textPrimary = Color(0xFF0F172A),
+    textMuted = Color(0xFF5A6B8C),
+    textDim = Color(0xFF94A3B8),
+    primary = Color(0xFF3B6FE0),
+    primaryLight = Color(0x1A3B6FE0),
+    success = Color(0xFF2FA36B),
+    error = Color(0xFFE05252),
+    accent = Color(0xFF7C6FE0),
+)
+val darkSoundGlow = ThemeColors(
+    name = "声光 暗",
+    bg = Color(0xFF0B1120),
+    bgGradientEnd = Color(0xFF15223E),
+    surface = Color(0xFF16213A),
+    surfaceVariant = Color(0xFF1C2842),
+    border = Color(0xFF2B3B5F),
+    borderLight = Color(0xFF22304F),
+    textPrimary = Color(0xFFEDF2FC),
+    textMuted = Color(0xFF9AA8C0),
+    textDim = Color(0xFF66748E),
+    primary = Color(0xFF5E8BFF),
+    primaryLight = Color(0x335E8BFF),
+    success = Color(0xFF3ECF8E),
+    error = Color(0xFFFF6B6B),
+    accent = Color(0xFF8AB4FF),
+)
+
+// ----- 纸语 (Paper Poem) · 设计稿方向 B：暖白纸感 + 墨色声纹环 -----
+val lightPaperPoem = ThemeColors(
+    name = "纸语 亮",
+    bg = Color(0xFFF7F1E4),
+    bgGradientEnd = Color(0xFFEFE5D0),
+    surface = Color(0xFFFFFDF6),
+    surfaceVariant = Color(0xFFFBF4E6),
+    border = Color(0xFFE5D8BF),
+    borderLight = Color(0xFFEDE3CE),
+    textPrimary = Color(0xFF3A3126),
+    textMuted = Color(0xFF85775F),
+    textDim = Color(0xFFAB9E86),
+    primary = Color(0xFFA9763C),
+    primaryLight = Color(0x1AA9763C),
+    success = Color(0xFF5F8A5B),
+    error = Color(0xFFC25450),
+    accent = Color(0xFFC9A26B),
+)
+val darkPaperPoem = ThemeColors(
+    name = "纸语 暗",
+    bg = Color(0xFF241D13),
+    bgGradientEnd = Color(0xFF1B1610),
+    surface = Color(0xFF322A1D),
+    surfaceVariant = Color(0xFF3C3323),
+    border = Color(0xFF5A4E38),
+    borderLight = Color(0xFF4A4030),
+    textPrimary = Color(0xFFF0E8D8),
+    textMuted = Color(0xFFB8AD9E),
+    textDim = Color(0xFF8B7D6B),
+    primary = Color(0xFFD4B896),
+    primaryLight = Color(0x33D4B896),
+    success = Color(0xFF8BC34A),
+    error = Color(0xFFEF9A9A),
+    accent = Color(0xFFD4A76A),
+)
+
+// ----- 墨线 (Ink Line) · 设计稿方向 C：高对比描边 + 漫画张力 -----
+val lightInkLine = ThemeColors(
+    name = "墨线 亮",
+    bg = Color(0xFFF7F4EC),
+    bgGradientEnd = Color(0xFFEFEAE0),
+    surface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFFF0EBE1),
+    border = Color(0xFF141414),
+    borderLight = Color(0xFF9A958A),
+    textPrimary = Color(0xFF141414),
+    textMuted = Color(0xFF5A564E),
+    textDim = Color(0xFF8F8A7E),
+    primary = Color(0xFFE83A2E),
+    primaryLight = Color(0x16E83A2E),
+    success = Color(0xFF2E9E3F),
+    error = Color(0xFFE83A2E),
+    accent = Color(0xFFD9A400),
+)
+val darkInkLine = ThemeColors(
+    name = "墨线 暗",
+    bg = Color(0xFF141414),
+    bgGradientEnd = Color(0xFF1C1C1C),
+    surface = Color(0xFF202020),
+    surfaceVariant = Color(0xFF262626),
+    border = Color(0xFF000000),
+    borderLight = Color(0xFF3A3A3A),
+    textPrimary = Color(0xFFF4F1E8),
+    textMuted = Color(0xFFB9B4A6),
+    textDim = Color(0xFF8A8578),
+    primary = Color(0xFFFF4B3E),
+    primaryLight = Color(0x26FF4B3E),
+    success = Color(0xFF4CC45E),
+    error = Color(0xFFFF4B3E),
+    accent = Color(0xFFFFD84D),
+)
 
 // ----- Manga (Comic) -----
 val lightManga = ThemeColors(

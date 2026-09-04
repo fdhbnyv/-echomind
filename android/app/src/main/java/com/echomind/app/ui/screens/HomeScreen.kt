@@ -1,4 +1,4 @@
-﻿package com.echomind.app.ui.screens
+package com.echomind.app.ui.screens
 
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -707,14 +707,15 @@ private fun RecordingWaveform(
         }
     }
 
+    val primary = Primary
     Canvas(modifier = modifier) {
         if (samples.size < 2) return@Canvas
         val w = size.width
         val h = size.height
 
         // 两层波纹叠加，产生水感
-        drawWaterRipple(samples, w, h, alpha = 0.25f, yOffset = -2.dp.toPx())
-        drawWaterRipple(samples, w, h, alpha = 0.60f, yOffset = 0f)
+        drawWaterRipple(samples, w, h, primary, alpha = 0.25f, yOffset = -2.dp.toPx())
+        drawWaterRipple(samples, w, h, primary, alpha = 0.60f, yOffset = 0f)
     }
 }
 
@@ -722,6 +723,7 @@ private fun DrawScope.drawWaterRipple(
     samples: MutableList<Float>,
     w: Float,
     h: Float,
+    primary: Color,
     alpha: Float,
     yOffset: Float,
 ) {
@@ -762,8 +764,8 @@ private fun DrawScope.drawWaterRipple(
         fill,
         brush = Brush.verticalGradient(
             colors = listOf(
-                Primary.copy(alpha = alpha),
-                Primary.copy(alpha = alpha * 0.3f),
+                primary.copy(alpha = alpha),
+                primary.copy(alpha = alpha * 0.3f),
                 Color.Transparent,
             ),
             startY = 0f,
@@ -772,5 +774,5 @@ private fun DrawScope.drawWaterRipple(
     )
 
     // 曲线描边
-    drawPath(line, color = Primary.copy(alpha = (alpha * 1.5f).coerceAtMost(1f)), style = Stroke(width = 1.5.dp.toPx()))
+    drawPath(line, color = primary.copy(alpha = (alpha * 1.5f).coerceAtMost(1f)), style = Stroke(width = 1.5.dp.toPx()))
 }
