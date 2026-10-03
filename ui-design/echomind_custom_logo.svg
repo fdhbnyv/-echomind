@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#FFFFFF"/>
+  
+  <!-- Notebook Page Silhouette -->
+  <rect x="136" y="80" width="240" height="290" rx="32" fill="none" stroke="#1E293B" stroke-width="9" stroke-linecap="round"/>
+  
+  <!-- Top Binding Dots / Accents -->
+  <rect x="190" y="104" width="24" height="6" rx="3" fill="#64748B"/>
+  <rect x="244" y="104" width="24" height="6" rx="3" fill="#64748B"/>
+  <rect x="298" y="104" width="24" height="6" rx="3" fill="#64748B"/>
+
+  <!-- Outer Echo Curves (Misty Teal #0D9488) -->
+  <path d="M 200 180 A 75 75 0 0 0 200 286" fill="none" stroke="#0D9488" stroke-width="9" stroke-linecap="round"/>
+  <path d="M 312 180 A 75 75 0 0 1 312 286" fill="none" stroke="#0D9488" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Inner Echo Curves (Misty Teal #0D9488) -->
+  <path d="M 222 205 A 45 45 0 0 0 222 261" fill="none" stroke="#0D9488" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 290 205 A 45 45 0 0 1 290 261" fill="none" stroke="#0D9488" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Center Captured Thought Node (#1E293B) -->
+  <circle cx="256" cy="233" r="14" fill="#1E293B"/>
+  <circle cx="256" cy="233" r="4" fill="#FFFFFF"/>
+
+  <!-- Bottom Ruled Record Line -->
+  <rect x="180" y="325" width="152" height="7" rx="3.5" fill="#0D9488"/>
+
+  <!-- Wordmark "EchoMind" -->
+  <text x="256" y="445" font-family="'Cal Sans', 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="700" fill="#1E293B" text-anchor="middle" letter-spacing="1.5">EchoMind</text>
+</svg>

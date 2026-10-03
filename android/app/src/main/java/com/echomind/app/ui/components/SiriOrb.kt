@@ -74,6 +74,18 @@ private data class OrbParams(
     val auraAlpha: Float,
 )
 
+/**
+ * 漂浮星尘粒子
+ */
+private data class StardustParticle(
+    val baseAngle: Float,
+    val baseRadiusRatio: Float,
+    val size: Float,
+    val speed: Float,
+    val pulsePhase: Float,
+    val colorIndex: Int,
+)
+
 private val idleParams = OrbParams(
     breathePeriodMs = 3200,
     breatheMin = 0.88f,
@@ -106,6 +118,7 @@ fun SiriOrb(
     modifier: Modifier = Modifier,
     state: OrbState = OrbState.IDLE,
     sizeDp: Float = 200f,
+    amplitude: Float = 0f,
 ) {
     val params = when (state) {
         OrbState.IDLE -> idleParams
@@ -113,7 +126,31 @@ fun SiriOrb(
         OrbState.PROCESSING -> processingParams
     }
 
+    val smoothedAmplitude by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = amplitude.coerceIn(0f, 1f),
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow,
+        ),
+        label = "amplitude",
+    )
+
     val transition = rememberInfiniteTransition(label = "orb")
+
+    // 粒子系统初始化
+    val particles = remember {
+        val rng = Random(42)
+        List(24) { index ->
+            StardustParticle(
+                baseAngle = rng.nextFloat() * (2f * Math.PI.toFloat()),
+                baseRadiusRatio = 0.95f + rng.nextFloat() * 0.9f,
+                size = 1.5f + rng.nextFloat() * 3.5f,
+                speed = 0.5f + rng.nextFloat() * 0.8f,
+                pulsePhase = rng.nextFloat() * 2f * Math.PI.toFloat(),
+                colorIndex = index % OrbPalette.size,
+            )
+        }
+    }
 
     // 呼吸动画
     val breathe by transition.animateFloat(
@@ -186,13 +223,16 @@ fun SiriOrb(
             val cy = size.height / 2
             val maxR = size.width / 2
 
-            // 呼吸缩放
+            // 呼吸缩放 + 音量响应
             val breatheRad = Math.toRadians(breathe.toDouble())
-            val scale = params.breatheMin +
+            val baseScale = params.breatheMin +
                     (params.breatheMax - params.breatheMin) *
                     (sin(breatheRad).toFloat() * 0.5f + 0.5f)
+            val audioScaleBoost = if (state == OrbState.LISTENING) smoothedAmplitude * 0.18f else 0f
+            val scale = baseScale + audioScaleBoost
 
             val orbRadius = maxR * scale * 0.85f
+            val currentAuraAlpha = (params.auraAlpha + (if (state == OrbState.LISTENING) smoothedAmplitude * 0.35f else 0f)).coerceAtMost(1f)
 
             // 色彩插值 — 从调色板采样两个主色
             val c1 = samplePalette(OrbPalette, colorPhase1 * params.colorShiftSpeed)
@@ -210,8 +250,8 @@ fun SiriOrb(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        c1.copy(alpha = 0.06f * params.auraAlpha * 3f),
-                        c1.copy(alpha = 0.02f * params.auraAlpha),
+                        c1.copy(alpha = 0.06f * currentAuraAlpha * 3f),
+                        c1.copy(alpha = 0.02f * currentAuraAlpha),
                         Color.Transparent,
                     ),
                     center = Offset(cx, cy),
@@ -226,8 +266,8 @@ fun SiriOrb(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        c1.copy(alpha = 0.12f * params.auraAlpha),
-                        c2.copy(alpha = 0.05f * params.auraAlpha),
+                        c1.copy(alpha = 0.12f * currentAuraAlpha),
+                        c2.copy(alpha = 0.05f * currentAuraAlpha),
                         Color.Transparent,
                     ),
                     center = Offset(cx + gradOffsetX * 0.5f, cy + gradOffsetY * 0.5f),
@@ -236,6 +276,22 @@ fun SiriOrb(
                 radius = auraRadius,
                 center = Offset(cx, cy),
             )
+
+            // ============ 层次 2.5: 漂浮星尘微粒 (Stardust Particles) ============
+            particles.forEach { p ->
+                val pAngle = p.baseAngle + (colorPhase2 * 2f * Math.PI.toFloat() * p.speed)
+                val pDist = orbRadius * p.baseRadiusRatio + (sin((colorPhase1 * 6.28f + p.pulsePhase).toDouble()).toFloat() * 8f)
+                val px = cx + cos(pAngle) * pDist
+                val py = cy + sin(pAngle) * pDist
+                val pAlpha = ((0.35f + 0.65f * (sin((colorPhase1 * 9.42f + p.pulsePhase).toDouble()).toFloat() * 0.5f + 0.5f)) * currentAuraAlpha * 1.8f).coerceIn(0f, 1f)
+                val pColor = OrbPalette[p.colorIndex % OrbPalette.size]
+
+                drawCircle(
+                    color = pColor.copy(alpha = pAlpha),
+                    radius = p.size * (1f + (if (state == OrbState.LISTENING) smoothedAmplitude * 0.6f else 0f)),
+                    center = Offset(px, py),
+                )
+            }
 
             // ============ 层次 3: 主体光晕层 ============
             val glowRadius = orbRadius * 1.2f
@@ -254,7 +310,7 @@ fun SiriOrb(
             )
 
             // ============ 层次 4: 主体球 ============
-            val coreBright = params.coreBrightness * (0.85f + 0.15f * corePulse)
+            val coreBright = (params.coreBrightness * (0.85f + 0.15f * corePulse) + (if (state == OrbState.LISTENING) smoothedAmplitude * 0.25f else 0f)).coerceAtMost(1f)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(

@@ -8,9 +8,17 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.echomind.app.R
+
+val CaveatFontFamily = FontFamily(
+    Font(R.font.caveat_regular, FontWeight.Normal),
+    Font(R.font.caveat_bold, FontWeight.Bold),
+)
+
 
 private val AppTypography = Typography(
     displayLarge = TextStyle(
@@ -103,12 +111,13 @@ private val BoldTitleTypography = AppTypography.run {
 
 @Composable
 fun EchoMindTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = ThemeManager.isDarkMode ?: isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val theme = ThemeManager.currentTheme
-    val tc = if (darkTheme) theme.dark else theme.light
-    val colorScheme = if (darkTheme) {
+    val effectiveDark = ThemeManager.isDarkMode ?: darkTheme
+    val tc = if (effectiveDark) theme.dark else theme.light
+    val colorScheme = if (effectiveDark) {
         darkColorScheme(
             primary = tc.primary, onPrimary = Color.White, primaryContainer = tc.primaryLight,
             onPrimaryContainer = tc.primary, secondary = tc.textMuted, onSecondary = tc.bg,

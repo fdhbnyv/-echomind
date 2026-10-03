@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 阿里 Iconfont 矢量图标：Markdown 格式 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <path
+        android:fillColor="?attr/colorControlNormal"
+        android:pathData="M896 192H128c-35.3 0-64 28.7-64 64v512c0 35.3 28.7 64 64 64h768c35.3 0 64-28.7 64-64V256c0-35.3-28.7-64-64-64zM192 640V384h64l64 96 64-96h64v256h-64V480l-64 96-64-96v160H192z m640 0h-64v-96h-96v96h-64l112-160 112 160z" />
+</vector>

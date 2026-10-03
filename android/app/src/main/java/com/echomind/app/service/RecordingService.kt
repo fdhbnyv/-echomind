@@ -11,8 +11,8 @@ import androidx.core.app.NotificationManagerCompat
 import com.echomind.app.MainActivity
 import com.echomind.app.R
 import com.echomind.app.audio.AudioRecorder
-import com.echomind.app.data.api.DashScopeApi
 import com.echomind.app.data.api.NotionApi
+import com.echomind.app.data.api.OpenAiClient
 import com.echomind.app.data.local.EchoMindDatabase
 import com.echomind.app.data.model.RecordingState
 import com.echomind.app.data.model.StructuredNote
@@ -134,13 +134,50 @@ class RecordingService : Service() {
     }
 
     private suspend fun transcribe(audioFile: File): String? {
-        val r = com.echomind.app.data.api.DashScopeApi().transcribe(audioFile)
+        val s = settingsRepo.settings.first()
+        val useLocal = s.asrMode == com.echomind.app.data.model.AsrEngineMode.LOCAL ||
+                (s.asrMode == com.echomind.app.data.model.AsrEngineMode.AUTO &&
+                 com.echomind.app.audio.SherpaAsrEngine.isModelPresent(this))
+
+        if (useLocal) {
+            val r = com.echomind.app.audio.SherpaAsrEngine.transcribeWaveFile(this, audioFile)
+            if (r.isSuccess) return r.getOrNull()
+        }
+
+        if (!s.openAiConfigured) return null
+        val r = OpenAiClient().transcribe(
+            audioFile = audioFile,
+            baseUrl = s.openAiBaseUrl,
+            apiKey = s.openAiApiKey,
+        )
         return r.getOrNull()
     }
 
     private suspend fun structure(transcription: String): StructuredNote? {
-        val api = com.echomind.app.data.api.DashScopeApi()
-        return api.structureNote(transcription, TemplateType.QUICK_IDEA.id).getOrNull()
+        val s = settingsRepo.settings.first()
+        if (!s.openAiConfigured) {
+            val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            return StructuredNote(
+                templateType = s.preferredTemplate.id,
+                title = transcription.lines().firstOrNull { it.isNotBlank() }?.take(25) ?: "录音速记",
+                date = todayStr,
+                summary = transcription.take(150),
+                keyPoints = listOf(transcription),
+                actionItems = emptyList(),
+                tags = listOf("后台录音", "离线转写"),
+                rawTranscription = transcription,
+            )
+        }
+        val memoryRepo = com.echomind.app.data.memory.MemoryRepository(this)
+        val r = OpenAiClient().structureNote(
+            transcription = transcription,
+            templateType = s.preferredTemplate.id,
+            baseUrl = s.openAiBaseUrl,
+            apiKey = s.openAiApiKey,
+            model = s.openAiModel,
+            memoryRepository = memoryRepo,
+        )
+        return r.getOrNull()
     }
 
     // ── Notifications ──

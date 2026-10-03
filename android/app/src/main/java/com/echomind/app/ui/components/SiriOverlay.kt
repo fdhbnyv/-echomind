@@ -6,12 +6,21 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -40,6 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -115,6 +127,12 @@ fun SiriOverlay(
                 },
         )
 
+        // Apple Intelligence 屏幕边缘光晕流光
+        AppleIntelligenceBorderGlow(
+            amplitude = amplitude,
+            isListening = phase == SiriPhase.RECORDING,
+        )
+
         // 主内容 — 从底部滑入
         AnimatedVisibility(
             visible = true,
@@ -144,6 +162,7 @@ fun SiriOverlay(
                         SiriPhase.PROCESSING -> OrbState.PROCESSING
                     },
                     sizeDp = 180f,
+                    amplitude = amplitude,
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -311,5 +330,77 @@ private fun BottomBar(
                 fontWeight = FontWeight.W600,
             )
         }
+    }
+}
+
+/**
+ * Apple Intelligence 边缘流光边框
+ */
+@Composable
+private fun AppleIntelligenceBorderGlow(
+    modifier: Modifier = Modifier,
+    amplitude: Float = 0f,
+    isListening: Boolean = false,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "edge_glow")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isListening) 3500 else 6000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "edge_phase",
+    )
+
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (isListening) (0.55f + amplitude * 0.45f).coerceAtMost(0.9f) else 0.3f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "glow_alpha",
+    )
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        val edgeDepth = (22.dp.toPx() * (1f + amplitude * 0.4f))
+
+        // 顶边柔光
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(Color(0xFF7C3AED).copy(alpha = glowAlpha * 0.7f), Color.Transparent),
+                startY = 0f,
+                endY = edgeDepth * 2f,
+            ),
+            size = Size(w, edgeDepth * 2f)
+        )
+        // 底边柔光
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, Color(0xFF2563EB).copy(alpha = glowAlpha * 0.7f)),
+                startY = h - edgeDepth * 2f,
+                endY = h,
+            ),
+            topLeft = Offset(0f, h - edgeDepth * 2f),
+            size = Size(w, edgeDepth * 2f)
+        )
+        // 左边柔光
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(Color(0xFFEC4899).copy(alpha = glowAlpha * 0.6f), Color.Transparent),
+                startX = 0f,
+                endX = edgeDepth * 1.5f,
+            ),
+            size = Size(edgeDepth * 1.5f, h)
+        )
+        // 右边柔光
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(Color.Transparent, Color(0xFF06B6D4).copy(alpha = glowAlpha * 0.6f)),
+                startX = w - edgeDepth * 1.5f,
+                endX = w,
+            ),
+            topLeft = Offset(w - edgeDepth * 1.5f, 0f),
+            size = Size(edgeDepth * 1.5f, h)
+        )
     }
 }

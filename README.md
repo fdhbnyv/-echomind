@@ -43,6 +43,33 @@ V1 不做后端服务。Android 客户端直接调用：
 
 ---
 
+## 云端同步（Supabase）
+
+V1 仍是"零后端"：Room（本地 SQLite）是唯一真相源，Supabase 只是云端镜像，可选开启。
+
+```
+本地写入（Room）→ SyncWorker（网络可用时）
+                    ├── 推送：cloudSynced=0 的笔记/记忆 批量 upsert（uuid 冲突合并）
+                    ├── 删除：cloud_deletes 墓碑 → 远端 DELETE
+                    └── 拉取：updated_at 游标增量拉取，last-write-wins 合并
+```
+
+**接入步骤：**
+
+1. 在 [supabase.com](https://supabase.com) 创建项目（免费档即可）
+2. Dashboard → SQL Editor → 执行 [`docs/supabase-schema.sql`](docs/supabase-schema.sql) 全部内容
+3. Dashboard → Project Settings → API，复制 Project URL 与 anon public key
+4. App「设置 → 云端同步」开启开关并填入两项，保存后点「立即同步」
+
+**说明与边界：**
+
+- 多设备离线写入不冲突（云端主键为客户端生成的 uuid）
+- 合并策略为 last-write-wins（按 `updatedAt` 毫秒时间戳）
+- V1 不做远端删除下行同步（A 设备删除不会自动删除 B 设备的本地行）
+- anon key 即访问凭据（RLS 对 anon 全放行），请勿公开分享；V2 用户系统上线后接入 Supabase Auth 收紧为按用户隔离
+
+---
+
 ## 当前状态
 
 | 模块 | 状态 |

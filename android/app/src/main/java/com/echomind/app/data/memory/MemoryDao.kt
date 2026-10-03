@@ -55,4 +55,24 @@ interface MemoryDao {
         LIMIT 20
     """)
     fun searchByKeyword(keyword: String): Flow<List<MemoryEntity>>
+
+    // ── 云端同步 ──
+
+    @Query("SELECT * FROM memories WHERE cloudSynced = 0 ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun getUnsyncedMemories(limit: Int): List<MemoryEntity>
+
+    @Query("SELECT * FROM memories WHERE uuid = :uuid LIMIT 1")
+    suspend fun getMemoryByUuid(uuid: String): MemoryEntity?
+
+    @Query("UPDATE memories SET cloudSynced = 1 WHERE uuid IN (:uuids)")
+    suspend fun markSynced(uuids: List<String>)
+
+    @Query("UPDATE memories SET cloudSynced = 0 WHERE id = :id")
+    suspend fun markUnsynced(id: Long)
+
+    @Query("UPDATE memories SET updatedAt = createdAt WHERE updatedAt = 0")
+    suspend fun backfillUpdatedAt()
+
+    @Query("SELECT uuid FROM memories WHERE uuid != ''")
+    suspend fun getAllUuids(): List<String>
 }

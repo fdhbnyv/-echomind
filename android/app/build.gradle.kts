@@ -17,6 +17,10 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "x86_64", "armeabi-v7a"))
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -96,6 +100,9 @@ dependencies {
 
     // Lottie for complex animations (Siri orb, waveform)
     implementation("com.airbnb.android:lottie-compose:6.6.0")
+
+    // Sherpa-ONNX offline voice recognition
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
     // Testing
     testImplementation("junit:junit:4.13.2")

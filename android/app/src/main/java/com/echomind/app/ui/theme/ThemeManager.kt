@@ -7,12 +7,16 @@ import androidx.compose.runtime.setValue
 /**
  * EchoMind 主题管理器。
  *
- * 使用 Compose [mutableStateOf] 保证主题切换后 UI 即时响应。
+ * 使用 Compose [mutableStateOf] 保证主题与深浅色切换后 UI 即时响应。
  */
 object ThemeManager {
 
     /** 当前主题（Compose 状态，修改后自动触发重组） */
     var currentTheme: AppTheme by mutableStateOf(AppTheme.LIQUID_GLASS)
+        private set
+
+    /** 暗色模式覆盖（null = 跟随系统，true = 强制暗色，false = 强制亮色） */
+    var isDarkMode: Boolean? by mutableStateOf(null)
         private set
 
     /** 当前主题的亮色配色 */
@@ -29,5 +33,10 @@ object ThemeManager {
     /** 通过 id 切换主题 */
     fun setThemeById(id: String) {
         currentTheme = AppTheme.entries.find { it.id == id } ?: AppTheme.LIQUID_GLASS
+    }
+
+    /** 设置深浅色偏好 */
+    fun updateDarkMode(dark: Boolean?) {
+        isDarkMode = dark
     }
 }

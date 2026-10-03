@@ -5,13 +5,18 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.echomind.app.audio.AudioRecorder
-import com.echomind.app.data.api.DashScopeApi
+import com.echomind.app.audio.SherpaAsrEngine
 import com.echomind.app.data.api.NotionApi
+import com.echomind.app.data.api.OpenAiClient
+import com.echomind.app.data.memory.MemoryRepository
+import com.echomind.app.data.model.AsrEngineMode
 import com.echomind.app.data.model.RecordingState
 import com.echomind.app.data.model.StructuredNote
 import com.echomind.app.data.model.TemplateType
 import com.echomind.app.data.repository.NoteRepository
 import com.echomind.app.data.repository.SettingsRepository
+import com.k2fsa.sherpa.onnx.OnlineStream
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -22,8 +27,9 @@ val Application.dataStore by preferencesDataStore(name = "echomind_settings")
 
 data class MainUiState(
     val recordingState: RecordingState = RecordingState.IDLE,
-    val selectedTemplate: TemplateType = TemplateType.DAILY_REVIEW,
+    val selectedTemplate: TemplateType = TemplateType.AUTO,
     val transcription: String = "",
+    val latestTranscribedText: String? = null,
     val structuredNote: StructuredNote? = null,
     val currentNoteId: Long = 0L,
     val isEditing: Boolean = false,
@@ -46,22 +52,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepo = SettingsRepository(application.dataStore)
     private val noteRepo = NoteRepository(application)
+    private val memoryRepo = MemoryRepository(application)
     private val audioRecorder = AudioRecorder(application)
+    private val openAiClient = OpenAiClient()
 
-    private var dashScopeApi: DashScopeApi? = null
     private var notionApi: NotionApi? = null
+    private var activeAsrStream: OnlineStream? = null
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState
 
     init {
+        // 后台预热加载 Sherpa-ONNX 离线语音识别模型
+        viewModelScope.launch(Dispatchers.Default) {
+            SherpaAsrEngine.initialize(application)
+        }
+
         viewModelScope.launch {
             settingsRepo.settings.collect { s ->
-                dashScopeApi = DashScopeApi()
                 notionApi = if (s.notionApiKey.isNotBlank()) NotionApi(s.notionApiKey) else null
                 com.echomind.app.ui.theme.ThemeManager.setThemeById(s.selectedTheme)
                 _uiState.update { it.copy(
-                    hasApiKeys = true,
+                    hasApiKeys = s.openAiConfigured,
                     selectedTemplate = s.preferredTemplate,
                 )}
             }
@@ -82,6 +94,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )}
             }
         }
+    }
+
+    fun clearLatestTranscribedText() {
+        _uiState.update { it.copy(latestTranscribedText = null) }
     }
 
     fun selectTemplate(type: TemplateType) {
@@ -107,21 +123,120 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(recordingState = RecordingState.TRANSCRIBING) }
-            transcribeAndStructure(audioFile)
+            transcribeAudio(audioFile)
         }
     }
 
-    private suspend fun transcribeAndStructure(audioFile: java.io.File) {
+    private suspend fun transcribeAudio(audioFile: java.io.File?, fallbackStreamingText: String = "") {
         _uiState.update { it.copy(recordingState = RecordingState.TRANSCRIBING) }
-        val tr = dashScopeApi?.transcribe(audioFile)
-        if (tr == null || tr.isFailure) {
-            _uiState.update { it.copy(recordingState = RecordingState.ERROR, errorMessage = "转写失败: ${tr?.exceptionOrNull()?.message ?: "API 不可用"}") }
+
+        var text: String? = fallbackStreamingText.trim().takeIf { it.isNotBlank() }
+
+        if (text.isNullOrBlank() && audioFile != null && audioFile.exists()) {
+            val s = settingsRepo.settings.first()
+            val useLocal = s.asrMode == AsrEngineMode.LOCAL ||
+                    (s.asrMode == AsrEngineMode.AUTO && SherpaAsrEngine.isModelPresent(getApplication()))
+
+            if (useLocal) {
+                val localRes = SherpaAsrEngine.transcribeWaveFile(getApplication(), audioFile)
+                if (localRes.isSuccess) {
+                    text = localRes.getOrNull()?.trim()
+                } else if (s.asrMode == AsrEngineMode.LOCAL) {
+                    _uiState.update {
+                        it.copy(
+                            recordingState = RecordingState.ERROR,
+                            errorMessage = "本地语音转写失败: ${localRes.exceptionOrNull()?.message}"
+                        )
+                    }
+                    return
+                }
+            }
+
+            if (text.isNullOrBlank()) {
+                if (!s.openAiConfigured) {
+                    _uiState.update {
+                        it.copy(
+                            recordingState = RecordingState.ERROR,
+                            errorMessage = "转写未完成且未配置云端 AI 接口，请在设置中配置或切换为本地模型"
+                        )
+                    }
+                    return
+                }
+                val tr = openAiClient.transcribe(
+                    audioFile = audioFile,
+                    baseUrl = s.openAiBaseUrl,
+                    apiKey = s.openAiApiKey,
+                )
+                if (tr.isFailure) {
+                    _uiState.update {
+                        it.copy(
+                            recordingState = RecordingState.ERROR,
+                            errorMessage = "转写失败: ${tr.exceptionOrNull()?.message ?: "接口不可用"}"
+                        )
+                    }
+                    return
+                }
+                text = tr.getOrThrow().trim()
+            }
+        }
+
+        if (!text.isNullOrBlank()) {
+            _uiState.update {
+                it.copy(
+                    recordingState = RecordingState.IDLE,
+                    transcription = "",
+                    latestTranscribedText = text,
+                    errorMessage = null
+                )
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    recordingState = RecordingState.IDLE,
+                    transcription = "",
+                    errorMessage = "未能识别出有效语音内容"
+                )
+            }
+        }
+    }
+
+    private suspend fun processTranscribedText(text: String) {
+        val s = settingsRepo.settings.first()
+        _uiState.update { it.copy(transcription = text, recordingState = RecordingState.STRUCTURING) }
+
+        if (!s.openAiConfigured) {
+            // 无云端 LLM Key 时的离线笔记保护：将本地转写内容保存为原始笔记
+            val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val fallbackTitle = text.lines().firstOrNull { it.isNotBlank() }?.take(25) ?: "语音转写笔记"
+            val fallbackNote = StructuredNote(
+                templateType = _uiState.value.selectedTemplate.id,
+                title = fallbackTitle,
+                date = todayStr,
+                summary = text.take(150),
+                keyPoints = listOf(text),
+                actionItems = emptyList(),
+                tags = listOf("语音速记", "离线转写"),
+                rawTranscription = text,
+            )
+            val savedId = noteRepo.saveNote(fallbackNote, isVoice = true, synced = false)
+            _uiState.update {
+                it.copy(
+                    recordingState = RecordingState.COMPLETED,
+                    structuredNote = fallbackNote,
+                    currentNoteId = savedId
+                )
+            }
             return
         }
-        val text = tr.getOrThrow()
-        _uiState.update { it.copy(transcription = text, recordingState = RecordingState.STRUCTURING) }
-        val sr = dashScopeApi!!.structureNote(text, _uiState.value.selectedTemplate.id)
+
+        val sr = openAiClient.structureNote(
+            transcription = text,
+            templateType = _uiState.value.selectedTemplate.id,
+            baseUrl = s.openAiBaseUrl,
+            apiKey = s.openAiApiKey,
+            model = s.openAiModel,
+            memoryRepository = memoryRepo,
+        )
         finishPipeline(sr, text, isVoice = true)
     }
 
@@ -153,7 +268,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         // 保存到本地数据库
         val savedId = noteRepo.saveNote(note, isVoice = isVoice, synced = synced)
+        // 自动沉淀关键行动回流至长期记忆
+        autoDistillToMemory(note)
         _uiState.update { it.copy(recordingState = RecordingState.COMPLETED, structuredNote = note, currentNoteId = savedId) }
+    }
+
+    private suspend fun autoDistillToMemory(note: StructuredNote) {
+        try {
+            for (action in note.actionItems.take(2)) {
+                if (action.isNotBlank()) {
+                    memoryRepo.addMemory(
+                        com.echomind.app.data.memory.Memory(
+                            content = "待办安排: $action",
+                            category = com.echomind.app.data.memory.MemoryCategory.NOTES.name,
+                            type = com.echomind.app.data.memory.MemoryType.FACT.name,
+                            tags = note.tags,
+                            importance = 3,
+                            source = "auto:note:${note.date}",
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     fun resetState() {
@@ -164,8 +300,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startRecordingReal(audioRecorder: com.echomind.app.audio.AudioRecorder) {
         if (_uiState.value.recordingState == RecordingState.RECORDING) return
         try {
+            _uiState.update {
+                it.copy(
+                    recordingState = RecordingState.RECORDING,
+                    transcription = "",
+                    structuredNote = null,
+                    errorMessage = null
+                )
+            }
+
+            viewModelScope.launch {
+                val s = settingsRepo.settings.first()
+                val useLocal = s.asrMode == AsrEngineMode.LOCAL ||
+                        (s.asrMode == AsrEngineMode.AUTO && SherpaAsrEngine.isModelPresent(getApplication()))
+
+                if (useLocal) {
+                    if (!SherpaAsrEngine.isReady()) {
+                        SherpaAsrEngine.initialize(getApplication())
+                    }
+                    activeAsrStream = SherpaAsrEngine.createStream()
+                } else {
+                    activeAsrStream = null
+                }
+
+                audioRecorder.onPcmChunkListener = { floatSamples ->
+                    val stream = activeAsrStream
+                    if (stream != null && s.livePreviewEnabled) {
+                        val currentText = SherpaAsrEngine.processSamples(stream, floatSamples)
+                        if (currentText.isNotBlank()) {
+                            _uiState.update { it.copy(transcription = currentText) }
+                        }
+                    }
+                }
+            }
+
             audioRecorder.startRecording()
-            _uiState.update { it.copy(recordingState = RecordingState.RECORDING, transcription = "", structuredNote = null, errorMessage = null) }
             // 启动静音监测线程，持续静音 2.5 秒后自动停止录音
             audioRecorder.startSilenceMonitor {
                 stopRecordingReal(audioRecorder)
@@ -175,17 +344,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** 停止真实录音并触发转写+结构化流程 */
+    /** 停止真实录音并触发转写流程（转写完成后填入文本框供用户修改） */
     fun stopRecordingReal(audioRecorder: com.echomind.app.audio.AudioRecorder) {
         if (_uiState.value.recordingState != RecordingState.RECORDING) return
+        val stream = activeAsrStream
+        activeAsrStream = null
+
         val audioFile = audioRecorder.stopRecording()
-        if (audioFile == null || !audioFile.exists()) {
-            _uiState.update { it.copy(recordingState = RecordingState.IDLE, errorMessage = "录音文件未找到") }
-            return
+
+        var streamingTranscription = ""
+        if (stream != null) {
+            streamingTranscription = SherpaAsrEngine.finishStream(stream)
         }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(recordingState = RecordingState.TRANSCRIBING) }
-            transcribeAndStructure(audioFile)
+            transcribeAudio(audioFile, streamingTranscription)
         }
     }
 
@@ -193,10 +366,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun processTextInput(text: String) {
         if (text.isBlank()) return
         viewModelScope.launch {
+            val s = settingsRepo.settings.first()
+            if (s.openAiBaseUrl.isBlank() || s.openAiApiKey.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        recordingState = RecordingState.ERROR,
+                        errorMessage = "请先在右上角设置中配置 AI 接口地址 (Base URL) 与 API Key"
+                    )
+                }
+                return@launch
+            }
+
             _uiState.update { it.copy(recordingState = RecordingState.STRUCTURING, transcription = text) }
-            val sr = dashScopeApi?.structureNote(text, _uiState.value.selectedTemplate.id)
-            if (sr == null || sr.isFailure) {
-                _uiState.update { it.copy(recordingState = RecordingState.ERROR, errorMessage = "AI 处理失败: ${sr?.exceptionOrNull()?.message ?: "API 不可用"}") }
+            val sr = openAiClient.structureNote(
+                transcription = text,
+                templateType = _uiState.value.selectedTemplate.id,
+                baseUrl = s.openAiBaseUrl,
+                apiKey = s.openAiApiKey,
+                model = s.openAiModel,
+                memoryRepository = memoryRepo,
+            )
+            if (sr.isFailure) {
+                _uiState.update {
+                    it.copy(
+                        recordingState = RecordingState.ERROR,
+                        errorMessage = "AI 处理失败: ${sr.exceptionOrNull()?.message ?: "接口不可用"}"
+                    )
+                }
                 return@launch
             }
             finishPipeline(sr, text, isVoice = false)
@@ -266,6 +462,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            activeAsrStream?.release()
+        } catch (_: Exception) {}
+        activeAsrStream = null
         audioRecorder.stopRecording()
     }
 }

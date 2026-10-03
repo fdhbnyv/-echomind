@@ -1,5 +1,6 @@
 package com.echomind.app.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.echomind.app.data.model.IdeaEntry
@@ -12,10 +13,16 @@ import kotlinx.serialization.serializer
 
 /**
  * Room entity for persisted voice/text notes.
+ *
+ * 云端同步元数据：
+ * @property uuid 云端主键（客户端生成，建行时赋值，永不改变）
+ * @property updatedAt 内容最后修改时间，驱动 last-write-wins 合并
+ * @property cloudSynced 是否已推送到 Supabase（false = 脏，待推送）
  */
 @Entity(tableName = "notes")
 data class NoteEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(defaultValue = "") val uuid: String = "",
     val templateType: String,
     val title: String,
     val date: String,
@@ -30,7 +37,10 @@ data class NoteEntity(
     val tags: String,
     val rawTranscription: String,
     val isVoice: Boolean,
+    /** Notion 同步标记（与云端库同步无关） */
     val synced: Boolean,
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0,
+    @ColumnInfo(defaultValue = "0") val cloudSynced: Boolean = false,
     val createdAt: Long,
 )
 

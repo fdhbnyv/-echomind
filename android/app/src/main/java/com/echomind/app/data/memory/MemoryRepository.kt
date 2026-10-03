@@ -1,7 +1,10 @@
 package com.echomind.app.data.memory
 
 import android.content.Context
+import com.echomind.app.data.local.CloudDeleteEntity
 import com.echomind.app.data.local.EchoMindDatabase
+import com.echomind.app.data.sync.CloudSyncManager
+import com.echomind.app.service.SyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -29,24 +32,50 @@ class MemoryRepository(private val context: Context) {
         return entity?.toMemory()
     }
 
-    /** Create memory */
+    /** Create memory — 生成云端 uuid 并标记待同步 */
     suspend fun addMemory(memory: Memory): Long {
-        return dao.insert(memory.toEntity())
+        val now = System.currentTimeMillis()
+        val id = dao.insert(
+            memory.toEntity().copy(
+                uuid = CloudSyncManager.newUuid(),
+                createdAt = now,
+                lastAccessedAt = now,
+                updatedAt = now,
+                cloudSynced = false,
+            )
+        )
+        SyncWorker.enqueueSafe(context)
+        return id
     }
 
-    /** Update memory */
+    /** Update memory — last-write-wins：递增 updatedAt 并标记待同步 */
     suspend fun updateMemory(memory: Memory) {
-        dao.update(memory.toEntity(memory.id))
+        dao.update(
+            memory.toEntity(memory.id).copy(
+                updatedAt = System.currentTimeMillis(),
+                cloudSynced = false,
+            )
+        )
+        SyncWorker.enqueueSafe(context)
     }
 
-    /** Soft delete */
+    /** Soft delete — 云端同步 isActive=false（保留行） */
     suspend fun deleteMemory(id: Long) {
         dao.softDelete(id)
+        dao.markUnsynced(id)
+        SyncWorker.enqueueSafe(context)
     }
 
-    /** Hard delete */
+    /** Hard delete — 云端删除墓碑 */
     suspend fun forceDeleteMemory(id: Long) {
+        val entity = dao.getMemoryById(id)
         dao.hardDelete(id)
+        if (entity?.uuid?.isNotBlank() == true) {
+            db.cloudDeleteDao().insert(
+                CloudDeleteEntity(entityType = CloudSyncManager.TYPE_MEMORY, uuid = entity.uuid)
+            )
+        }
+        SyncWorker.enqueueSafe(context)
     }
 
     // ── Category / Type filters ──

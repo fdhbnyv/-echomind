@@ -1,5 +1,6 @@
 package com.echomind.app.data.memory
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -36,6 +37,8 @@ enum class MemoryType(val label: String) {
 @Entity(tableName = "memories")
 data class MemoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** 云端主键（客户端生成，建行时赋值） */
+    @ColumnInfo(defaultValue = "") val uuid: String = "",
     /** 记忆内容主体 */
     val content: String,
     /** 所属分类 */
@@ -56,10 +59,15 @@ data class MemoryEntity(
     val lastAccessedAt: Long = System.currentTimeMillis(),
     /** 访问次数 */
     val accessCount: Int = 0,
+    /** 内容最后修改时间，驱动云端 last-write-wins 合并 */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0,
+    /** 是否已推送到 Supabase（false = 脏，待推送） */
+    @ColumnInfo(defaultValue = "0") val cloudSynced: Boolean = false,
 )
 
 fun MemoryEntity.toMemory(): Memory = Memory(
     id = id,
+    uuid = uuid,
     content = content,
     category = category,
     type = type,
@@ -74,6 +82,7 @@ fun MemoryEntity.toMemory(): Memory = Memory(
 
 fun Memory.toEntity(id: Long = this.id): MemoryEntity = MemoryEntity(
     id = id,
+    uuid = uuid,
     content = content,
     category = category,
     type = type,
@@ -89,7 +98,9 @@ fun Memory.toEntity(id: Long = this.id): MemoryEntity = MemoryEntity(
 // ── Domain model ──
 
 data class Memory(
-    val id: Long,
+    val id: Long = 0,
+    /** 云端同步主键（客户端生成） */
+    val uuid: String = "",
     val content: String,
     val category: String,
     val type: String,
@@ -97,8 +108,8 @@ data class Memory(
     val importance: Int = 3,
     val source: String = "manual",
     val isActive: Boolean = true,
-    val createdAt: Long,
-    val lastAccessedAt: Long,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastAccessedAt: Long = System.currentTimeMillis(),
     val accessCount: Int = 0,
 ) {
     val categoryEnum: MemoryCategory?

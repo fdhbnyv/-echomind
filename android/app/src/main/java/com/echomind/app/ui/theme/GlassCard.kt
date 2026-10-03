@@ -3,7 +3,6 @@ package com.echomind.app.ui.theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,7 +21,7 @@ import androidx.compose.ui.unit.dp
  * 特性：
  * - 半透明玻璃表面（配合 Theme 的 surface 颜色）
  * - 极薄边框 + 柔和阴影
- * - 右上角可选微光反射效果
+ * - 右上角微光反射效果
  * - 圆角统一 16dp
  */
 @Composable
@@ -42,16 +41,17 @@ fun GlassCard(
             defaultElevation = elevation,
         ),
     ) {
-        // 右上角微光反射
-        Box(modifier = Modifier.background(
-            Brush.radialGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 0.25f),
-                    Color.Transparent,
-                ),
-                radius = 1.2f,
+        Box(
+            modifier = Modifier.background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+                        Color.Transparent,
+                    ),
+                    radius = 1.2f,
+                )
             )
-        )) {
+        ) {
             content()
         }
     }
@@ -66,21 +66,19 @@ fun GlassInputBox(
     shape: RoundedCornerShape = RoundedCornerShape(16.dp),
     content: @Composable () -> Unit,
 ) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val borderColor = MaterialTheme.colorScheme.outlineVariant
+
     Box(
         modifier = modifier
             .clip(shape)
             .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.85f),
-                        Color.White.copy(alpha = 0.75f),
-                    )
-                ),
+                color = surfaceColor,
                 shape = shape,
             )
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.5f),
+                color = borderColor,
                 shape = shape,
             )
     ) {

@@ -7,14 +7,16 @@ import androidx.compose.ui.graphics.Color
 // ═══════════════════════════════════════════════════════════════
 // 主题响应式色彩系统
 //
-// 所有颜色均为 @Composable 属性，读取 ThemeManager 当前主题（含系统深浅色），
+// 所有颜色均为 @Composable 属性，读取 ThemeManager 当前主题（含用户暗色偏好/系统深浅色），
 // 主题切换后会自动触发重组。旧组件中的静态色引用无需改动即可跟随主题。
 // ═══════════════════════════════════════════════════════════════
 
-/** 当前主题配色（跟随系统深浅色） */
+/** 当前主题配色（跟随用户设置或系统深浅色） */
 @Composable
-private fun currentThemeColors(): ThemeColors =
-    if (isSystemInDarkTheme()) ThemeManager.darkColors() else ThemeManager.lightColors()
+private fun currentThemeColors(): ThemeColors {
+    val isDark = ThemeManager.isDarkMode ?: isSystemInDarkTheme()
+    return if (isDark) ThemeManager.darkColors() else ThemeManager.lightColors()
+}
 
 // 基底
 val Background: Color @Composable get() = currentThemeColors().bg

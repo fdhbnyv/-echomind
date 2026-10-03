@@ -14,11 +14,9 @@ import java.util.concurrent.TimeUnit
 /**
  * WorkManager Worker that processes the offline queue.
  *
- * Triggered when network is available. For each pending item:
- * 1. Parse the stored structuredNoteJson
- * 2. Attempt Notion API write
- * 3. If successful, delete from queue
- * 4. If fails, increment retry count (max 5 attempts)
+ * Triggered when network is available:
+ * 1. Process each pending Notion item (parse stored JSON, write, retry up to 5x)
+ * 2. Run the Supabase cloud sync (push dirty rows + tombstones, pull remote changes)
  */
 class SyncWorker(
     context: Context,
@@ -31,18 +29,16 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         val items = dao.getAll()
-        if (items.isEmpty()) return Result.success()
-
-        val json = Json { ignoreUnknownKeys = true }
-        var successCount = 0
-        var failCount = 0
-
         val settingsRepo = runCatching {
             val app = appCtx as Application
             SettingsRepository(app.dataStore)
         }.getOrNull()
-
         val settings = settingsRepo?.settings?.first() ?: return Result.success()
+
+        var successCount = 0
+        var failCount = 0
+
+        val json = Json { ignoreUnknownKeys = true }
 
         for (item in items) {
             if (item.retryCount >= MAX_RETRIES) {
@@ -72,7 +68,14 @@ class SyncWorker(
             }
         }
 
-        return if (failCount == 0) Result.success() else Result.retry()
+        // ── Supabase 云端同步（未配置时为 no-op 成功）──
+        val cloudOk = settingsRepo?.let { repo ->
+            runCatching {
+                com.echomind.app.data.sync.CloudSyncManager(appCtx, repo).syncAll()
+            }.getOrDefault(false)
+        } ?: true
+
+        return if (failCount == 0 && cloudOk) Result.success() else Result.retry()
     }
 
     companion object {
@@ -108,6 +111,14 @@ class SyncWorker(
 
             WorkManager.getInstance(context)
                 .enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+        }
+
+        /**
+         * Repository 变更后的安全触发：WorkManager 未初始化（如纯 JVM 测试）
+         * 时静默忽略。
+         */
+        fun enqueueSafe(context: Context) {
+            runCatching { enqueue(context) }
         }
     }
 }

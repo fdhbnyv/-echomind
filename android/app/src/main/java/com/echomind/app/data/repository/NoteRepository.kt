@@ -1,10 +1,13 @@
 package com.echomind.app.data.repository
 
 import android.content.Context
+import com.echomind.app.data.local.CloudDeleteEntity
 import com.echomind.app.data.local.EchoMindDatabase
 import com.echomind.app.data.local.NoteEntity
 import com.echomind.app.data.local.toStructuredNote
 import com.echomind.app.data.model.StructuredNote
+import com.echomind.app.data.sync.CloudSyncManager
+import com.echomind.app.service.SyncWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -156,10 +159,12 @@ class NoteRepository(private val context: Context) {
         if (file.exists()) file.delete()
     }
 
-    /** Save a note — Room DB + .md file */
+    /** Save a note — Room DB + .md file, 并标记待云端同步 */
     suspend fun saveNote(note: StructuredNote, isVoice: Boolean, synced: Boolean): Long {
+        val now = System.currentTimeMillis()
         val id = dao.insertNote(
             NoteEntity(
+                uuid = CloudSyncManager.newUuid(),
                 templateType = note.templateType,
                 title = note.title,
                 date = note.date,
@@ -175,19 +180,23 @@ class NoteRepository(private val context: Context) {
                 rawTranscription = note.rawTranscription,
                 isVoice = isVoice,
                 synced = synced,
-                createdAt = System.currentTimeMillis(),
+                updatedAt = now,
+                cloudSynced = false,
+                createdAt = now,
             )
         )
         // Write .md file
         writeMarkdownFile(note)
+        SyncWorker.enqueueSafe(context)
         return id
     }
 
-    /** Update an existing note — preserves id, isVoice, synced, createdAt */
+    /** Update an existing note — preserves id, uuid, isVoice, synced, createdAt; 重新标记待云端同步 */
     suspend fun updateNote(note: StructuredNote, id: Long = 0L) {
         val existing = if (id > 0) dao.getNoteById(id) else null
         val entity = NoteEntity(
             id = id,
+            uuid = existing?.uuid ?: CloudSyncManager.newUuid(),
             templateType = note.templateType,
             title = note.title,
             date = note.date,
@@ -203,23 +212,38 @@ class NoteRepository(private val context: Context) {
             rawTranscription = note.rawTranscription,
             isVoice = existing?.isVoice ?: false,
             synced = existing?.synced ?: false,
+            updatedAt = System.currentTimeMillis(),
+            cloudSynced = false,
             createdAt = existing?.createdAt ?: System.currentTimeMillis(),
         )
         dao.updateNote(entity)
         // Re-write .md file
         writeMarkdownFile(note)
+        SyncWorker.enqueueSafe(context)
     }
 
-    /** Delete a note from Room + .md file */
+    /** Delete a note from Room + .md file + 云端删除墓碑 */
     suspend fun deleteNoteById(id: Long) {
         val entity = dao.getNoteById(id) ?: return
         dao.deleteNote(entity)
+        if (entity.uuid.isNotBlank()) {
+            db.cloudDeleteDao().insert(
+                CloudDeleteEntity(entityType = CloudSyncManager.TYPE_NOTE, uuid = entity.uuid)
+            )
+        }
         // Remove .md file
         deleteMarkdownFile(entity.toStructuredNote())
+        SyncWorker.enqueueSafe(context)
     }
 
-    /** Delete ALL notes + all .md files */
+    /** Delete ALL notes + all .md files；全部入云端删除队列 */
     suspend fun deleteAllNotes() {
+        val uuids = dao.getAllUuids()
+        for (uuid in uuids) {
+            db.cloudDeleteDao().insert(
+                CloudDeleteEntity(entityType = CloudSyncManager.TYPE_NOTE, uuid = uuid)
+            )
+        }
         dao.deleteAllNotes()
         withContext(Dispatchers.IO) {
             val dir = notesDir()
@@ -227,5 +251,6 @@ class NoteRepository(private val context: Context) {
                 dir.listFiles()?.forEach { it.delete() }
             }
         }
+        SyncWorker.enqueueSafe(context)
     }
 }
